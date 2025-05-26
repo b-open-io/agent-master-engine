@@ -69,7 +69,7 @@ func NewEngine(opts ...Option) (Engine, error) {
 
 	// Initialize config
 	e.config = &Config{
-		Version: "1.0.0",
+		Version: "1.0.1",
 		Servers: make(map[string]ServerWithMetadata),
 		Settings: Settings{
 			AutoSync: AutoSyncSettings{

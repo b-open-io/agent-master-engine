@@ -49,7 +49,7 @@ const (
 	DefaultDebounceDelay  = 500  // milliseconds
 	DefaultMaxBackups     = 10
 	DefaultMaxSyncWorkers = 5
-	DefaultConfigVersion  = "1.0.0"
+	DefaultConfigVersion  = "1.0.1"
 )
 
 // File patterns
