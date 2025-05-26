@@ -1,0 +1,130 @@
+{
+  "description": "Complex edge cases and sync scenarios that the engine must handle",
+  "scenarios": [
+    {
+      "name": "Project folder as sync target",
+      "description": "When a sync target path is also a project with its own MCP configs",
+      "example": {
+        "syncTarget": "/Users/satchmo/code/bitcoin-auth-pwa",
+        "targetType": "claude-code",
+        "conflict": "Target is both a sync destination and has project-level configs",
+        "resolution": "Merge global servers with project-specific servers, project configs take precedence"
+      }
+    },
+    {
+      "name": "Nested project configurations",
+      "description": "When scanning for project configs, finding nested projects within projects",
+      "example": {
+        "parentProject": "/Users/satchmo/code",
+        "childProjects": [
+          "/Users/satchmo/code/agent-master",
+          "/Users/satchmo/code/bitcoin-auth-pwa",
+          "/Users/satchmo/code/droplit"
+        ],
+        "resolution": "Each project maintains its own config, no inheritance"
+      }
+    },
+    {
+      "name": "Server name conflicts after sanitization",
+      "description": "Multiple servers that sanitize to the same name",
+      "example": {
+        "servers": {
+          "@company/server": "sanitizes to: company-server",
+          "company/server": "sanitizes to: company-server",
+          "company-server": "already valid"
+        },
+        "resolution": "Append numeric suffix to duplicates: company-server, company-server-2, company-server-3"
+      }
+    },
+    {
+      "name": "Circular sync dependencies",
+      "description": "When auto-sync watches a directory that contains the master config",
+      "example": {
+        "masterConfig": "/Users/satchmo/.agent-master/mcp.json",
+        "watchedDir": "/Users/satchmo/.agent-master/",
+        "risk": "Infinite sync loop",
+        "resolution": "Exclude master config directory from file watchers"
+      }
+    },
+    {
+      "name": "Environment variable conflicts",
+      "description": "Same server used globally and in projects with different env vars",
+      "example": {
+        "globalServer": {
+          "name": "github",
+          "env": {
+            "GITHUB_ACCESS_TOKEN": "${GITHUB_PERSONAL_TOKEN}"
+          }
+        },
+        "projectServer": {
+          "name": "github",
+          "env": {
+            "GITHUB_ACCESS_TOKEN": "${GITHUB_WORK_TOKEN}"
+          }
+        },
+        "resolution": "Project-level env vars override global ones"
+      }
+    },
+    {
+      "name": "Disabled server in active project",
+      "description": "Server marked as disabled globally but needed in specific project",
+      "example": {
+        "server": "expensive-api-server",
+        "globalState": "disabled",
+        "projectRequirement": "required for /Users/satchmo/code/api-project",
+        "resolution": "Allow project-specific enable overrides"
+      }
+    },
+    {
+      "name": "Target-specific server configurations",
+      "description": "Same server needs different configs for different targets",
+      "example": {
+        "server": "filesystem",
+        "claudeCode": {
+          "args": ["@modelcontextprotocol/server-filesystem@latest", "${projectPath}"]
+        },
+        "vscode": {
+          "args": ["@modelcontextprotocol/server-filesystem@latest", "/Users/satchmo"]
+        },
+        "resolution": "Support target-specific configuration overrides"
+      }
+    },
+    {
+      "name": "Auto-sync file collision",
+      "description": "Auto-sync modifies file while user is editing",
+      "example": {
+        "file": "/Users/satchmo/.vscode/extensions/mcp/settings.json",
+        "userAction": "Manually editing",
+        "autoSyncAction": "Attempting to write updates",
+        "resolution": "Implement file locking and conflict detection"
+      }
+    },
+    {
+      "name": "Server removal propagation",
+      "description": "Server removed from master but exists in project configs",
+      "example": {
+        "action": "Remove 'deprecated-server' from master",
+        "existsIn": ["/project1/.claude.json", "/project2/.claude.json"],
+        "resolution": "Option to remove from all locations or keep project-specific instances"
+      }
+    },
+    {
+      "name": "Mixed transport project migration",
+      "description": "Moving servers between global and project scope with different transports",
+      "example": {
+        "globalSSE": {
+          "name": "api-server",
+          "transport": "sse",
+          "url": "https://api.example.com/mcp"
+        },
+        "projectStdio": {
+          "name": "api-server",
+          "transport": "stdio",
+          "command": "bunx",
+          "args": ["api-server-local"]
+        },
+        "resolution": "Maintain separate configs, warn about naming conflicts"
+      }
+    }
+  ]
+}

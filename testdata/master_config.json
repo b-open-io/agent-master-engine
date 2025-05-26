@@ -1,0 +1,65 @@
+{
+  "description": "Complete master configuration with all transport types and features",
+  "version": "1.0.0",
+  "servers": {
+    "memory": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-memory@latest"],
+      "transport": "stdio"
+    },
+    "filesystem": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-filesystem@latest", "/Users/satchmo"],
+      "transport": "stdio"
+    },
+    "github": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-github@latest"],
+      "transport": "stdio",
+      "env": {
+        "GITHUB_ACCESS_TOKEN": "${GITHUB_ACCESS_TOKEN}"
+      }
+    },
+    "Zapier_MCP": {
+      "url": "https://plugins.zapier.com/api/v1/mcp",
+      "transport": "sse",
+      "headers": {
+        "X-API-Key": "${ZAPIER_API_KEY}"
+      }
+    },
+    "bsv_mcp_hosted": {
+      "url": "https://bsv-mcp.yutongshen.com/sse",
+      "transport": "sse"
+    },
+    "@21st-dev/magic": {
+      "command": "bunx",
+      "args": ["@21st-dev/magic@latest"],
+      "transport": "stdio"
+    },
+    "Bitcoin SV": {
+      "command": "bunx",
+      "args": ["bsv-mcp@latest"],
+      "transport": "stdio"
+    },
+    "anthropic": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-anthropic@latest"],
+      "transport": "stdio",
+      "env": {
+        "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY}"
+      }
+    },
+    "n8n": {
+      "url": "https://n8n.local/webhook/model-context-protocol/sse",
+      "transport": "sse",
+      "headers": {
+        "Authorization": "Bearer ${N8N_TOKEN}"
+      }
+    },
+    "obsidian": {
+      "command": "bunx",
+      "args": ["mcp-obsidian", "/Users/satchmo/Library/Mobile Documents/iCloud~md~obsidian/Documents/Homestead"],
+      "transport": "stdio"
+    }
+  }
+}

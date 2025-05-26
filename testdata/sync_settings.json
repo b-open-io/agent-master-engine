@@ -1,0 +1,117 @@
+{
+  "description": "All settings that affect agent-master sync behavior",
+  "globalSettings": {
+    "autoSync": {
+      "enabled": true,
+      "description": "Automatically sync changes across all targets in real-time",
+      "watchInterval": 1000,
+      "debounceDelay": 500
+    },
+    "syncOnStartup": {
+      "enabled": true,
+      "description": "Sync all configurations when agent-master starts"
+    },
+    "backupBeforeSync": {
+      "enabled": true,
+      "description": "Create backups before modifying target configurations",
+      "backupLocation": "~/.agent-master/backups",
+      "maxBackups": 10
+    },
+    "conflictResolution": {
+      "mode": "interactive",
+      "options": ["interactive", "master-wins", "target-wins", "merge"],
+      "description": "How to handle conflicts between master and target configs"
+    },
+    "projectScanning": {
+      "enabled": true,
+      "description": "Scan for project-level MCP configurations",
+      "scanPaths": ["~/code", "~/projects"],
+      "excludePaths": ["node_modules", ".git", "dist", "build"],
+      "maxDepth": 5
+    },
+    "serverNameSanitization": {
+      "enabled": true,
+      "description": "Sanitize server names for target compatibility",
+      "duplicateHandling": "append-number"
+    }
+  },
+  "targetSettings": {
+    "claude-code": {
+      "enabled": true,
+      "requiresSanitization": true,
+      "supportsProjects": true,
+      "configFormat": "project-nested",
+      "configPath": "~/.claude.json",
+      "serverNamePattern": "^[a-zA-Z0-9_-]{1,64}$"
+    },
+    "vscode": {
+      "enabled": true,
+      "requiresSanitization": false,
+      "supportsProjects": false,
+      "configFormat": "flat",
+      "configPath": "~/.vscode/extensions/mcp/settings.json"
+    },
+    "cursor": {
+      "enabled": true,
+      "requiresSanitization": false,
+      "supportsProjects": false,
+      "configFormat": "flat",
+      "configPath": "~/Library/Application Support/Cursor/User/globalStorage/settings.json"
+    },
+    "windsurf": {
+      "enabled": true,
+      "requiresSanitization": false,
+      "supportsProjects": false,
+      "configFormat": "flat",
+      "configPath": "~/.windsurf/mcp.json"
+    },
+    "zed": {
+      "enabled": false,
+      "requiresSanitization": false,
+      "supportsProjects": true,
+      "configFormat": "nested",
+      "configPath": "~/.config/zed/mcp.json"
+    }
+  },
+  "serverDefaults": {
+    "enabledByDefault": true,
+    "syncToAllTargets": true,
+    "autoDisableOnError": false,
+    "maxErrorRetries": 3,
+    "errorRetryDelay": 5000
+  },
+  "syncFilters": {
+    "includeServers": [],
+    "excludeServers": [],
+    "includeTargets": [],
+    "excludeTargets": [],
+    "projectSpecificOnly": false,
+    "globalOnly": false
+  },
+  "advanced": {
+    "parallelSync": {
+      "enabled": true,
+      "maxConcurrent": 5,
+      "description": "Sync multiple targets in parallel"
+    },
+    "validation": {
+      "enabled": true,
+      "validateBeforeWrite": true,
+      "validateAfterWrite": true,
+      "rollbackOnFailure": true
+    },
+    "logging": {
+      "level": "info",
+      "logSyncOperations": true,
+      "logConfigChanges": true,
+      "logErrors": true,
+      "logFile": "~/.agent-master/logs/sync.log"
+    },
+    "fileOperations": {
+      "createMissingDirs": true,
+      "preservePermissions": true,
+      "atomicWrites": true,
+      "lockTimeout": 5000
+    }
+  }
+}

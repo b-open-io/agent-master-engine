@@ -1,0 +1,53 @@
+{
+  "description": "Agent-master internal fields that are used for state management but not written to target configs",
+  "servers": {
+    "memory": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-memory@latest"],
+      "transport": "stdio",
+      "_internal": {
+        "enabled": true,
+        "syncTargets": ["claude-code", "vscode", "cursor", "windsurf", "zed"],
+        "excludeFromTargets": [],
+        "lastModified": "2025-01-26T10:00:00Z",
+        "source": "user",
+        "projectSpecific": false
+      }
+    },
+    "github": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-github@latest"],
+      "transport": "stdio",
+      "env": {
+        "GITHUB_ACCESS_TOKEN": "${GITHUB_ACCESS_TOKEN}"
+      },
+      "_internal": {
+        "enabled": false,
+        "syncTargets": ["claude-code", "vscode"],
+        "excludeFromTargets": ["cursor"],
+        "lastModified": "2025-01-25T15:30:00Z",
+        "source": "imported",
+        "projectSpecific": true,
+        "projectPaths": ["/Users/satchmo/code/agent-master", "/Users/satchmo/code/bitcoin-auth-pwa"]
+      }
+    },
+    "Zapier_MCP": {
+      "url": "https://plugins.zapier.com/api/v1/mcp",
+      "transport": "sse",
+      "headers": {
+        "X-API-Key": "${ZAPIER_API_KEY}"
+      },
+      "_internal": {
+        "enabled": true,
+        "syncTargets": ["all"],
+        "excludeFromTargets": [],
+        "lastModified": "2025-01-20T08:00:00Z",
+        "source": "preset",
+        "projectSpecific": false,
+        "autoDisableOnError": true,
+        "errorCount": 0,
+        "lastError": null
+      }
+    }
+  }
+}

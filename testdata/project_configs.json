@@ -1,0 +1,45 @@
+{
+  "description": "Project-based MCP configurations as used by Claude Code",
+  "projects": {
+    "/Users/satchmo/code/droplit": {
+      "mcpServers": {
+        "memory": {
+          "command": "bunx",
+          "args": ["@modelcontextprotocol/server-memory@latest"],
+          "transport": "stdio"
+        }
+      }
+    },
+    "/Users/satchmo/code/bitcoin-auth-pwa": {
+      "mcpServers": {
+        "memory": {
+          "command": "bunx",
+          "args": ["@modelcontextprotocol/server-memory@latest"],
+          "transport": "stdio"
+        },
+        "github": {
+          "command": "bunx",
+          "args": ["@modelcontextprotocol/server-github@latest"],
+          "transport": "stdio",
+          "env": {
+            "GITHUB_ACCESS_TOKEN": "placeholder"
+          }
+        }
+      }
+    },
+    "/Users/satchmo/code/1sat-discord-bot": {
+      "mcpServers": {
+        "Bitcoin-SV": {
+          "command": "bunx",
+          "args": ["bsv-mcp@latest"],
+          "transport": "stdio"
+        },
+        "filesystem": {
+          "command": "bunx",
+          "args": ["@modelcontextprotocol/server-filesystem@latest", "/Users/satchmo/code/1sat-discord-bot"],
+          "transport": "stdio"
+        }
+      }
+    }
+  }
+}

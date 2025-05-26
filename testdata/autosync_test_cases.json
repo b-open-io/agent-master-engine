@@ -1,0 +1,199 @@
+{
+  "description": "Test cases for auto-sync functionality with file watching",
+  "testCases": [
+    {
+      "name": "Add new server to master",
+      "trigger": {
+        "action": "modify",
+        "file": "~/.agent-master/mcp.json",
+        "change": "Add new server 'test-server'"
+      },
+      "expected": {
+        "syncActions": [
+          {
+            "target": "claude-code",
+            "action": "update",
+            "sanitizedName": "test-server"
+          },
+          {
+            "target": "vscode",
+            "action": "update"
+          },
+          {
+            "target": "cursor",
+            "action": "update"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Project config modification",
+      "trigger": {
+        "action": "modify",
+        "file": "/Users/satchmo/code/bitcoin-auth-pwa/.claude.json",
+        "change": "User manually adds server to project"
+      },
+      "expected": {
+        "syncActions": [],
+        "reason": "Project-level changes don't propagate to other targets"
+      }
+    },
+    {
+      "name": "Target config external modification",
+      "trigger": {
+        "action": "modify",
+        "file": "~/.vscode/extensions/mcp/settings.json",
+        "change": "User manually edits VSCode config"
+      },
+      "expected": {
+        "syncActions": [
+          {
+            "action": "conflict-detection",
+            "resolution": "Based on conflictResolution setting"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Rapid consecutive changes",
+      "trigger": {
+        "action": "multiple-modify",
+        "file": "~/.agent-master/mcp.json",
+        "changes": [
+          "Add server A at T+0ms",
+          "Add server B at T+100ms",
+          "Remove server A at T+200ms"
+        ]
+      },
+      "expected": {
+        "syncActions": [
+          {
+            "action": "debounced-update",
+            "delay": 500,
+            "finalState": "Only server B added"
+          }
+        ]
+      }
+    },
+    {
+      "name": "File deletion recovery",
+      "trigger": {
+        "action": "delete",
+        "file": "~/.claude.json",
+        "change": "Target config accidentally deleted"
+      },
+      "expected": {
+        "syncActions": [
+          {
+            "action": "recreate",
+            "source": "master-config",
+            "includeProjects": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "Circular dependency prevention",
+      "trigger": {
+        "action": "modify",
+        "file": "~/.agent-master/mcp.json",
+        "causedBy": "auto-sync-write"
+      },
+      "expected": {
+        "syncActions": [],
+        "reason": "Ignore changes caused by auto-sync itself"
+      }
+    },
+    {
+      "name": "Server rename cascade",
+      "trigger": {
+        "action": "rename",
+        "file": "~/.agent-master/mcp.json",
+        "change": "Rename 'old-server' to 'new-server'"
+      },
+      "expected": {
+        "syncActions": [
+          {
+            "target": "all",
+            "action": "remove-and-add",
+            "removeOld": "old-server",
+            "addNew": "new-server"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Disabled server handling",
+      "trigger": {
+        "action": "modify",
+        "file": "~/.agent-master/mcp.json",
+        "change": "Set server 'expensive-api' enabled=false"
+      },
+      "expected": {
+        "syncActions": [
+          {
+            "target": "all",
+            "action": "remove",
+            "server": "expensive-api",
+            "preserveProjectOverrides": true
+          }
+        ]
+      }
+    },
+    {
+      "name": "Target-specific exclude",
+      "trigger": {
+        "action": "modify",
+        "file": "~/.agent-master/mcp.json",
+        "change": "Add 'cursor' to excludeFromTargets for 'dev-server'"
+      },
+      "expected": {
+        "syncActions": [
+          {
+            "target": "cursor",
+            "action": "remove",
+            "server": "dev-server"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Concurrent target updates",
+      "trigger": {
+        "action": "modify",
+        "file": "~/.agent-master/mcp.json",
+        "change": "Update that affects all 5 targets"
+      },
+      "expected": {
+        "syncActions": [
+          {
+            "mode": "parallel",
+            "maxConcurrent": 5,
+            "targets": ["claude-code", "vscode", "cursor", "windsurf", "zed"],
+            "rollbackOnFailure": true
+          }
+        ]
+      }
+    }
+  ],
+  "watcherConfiguration": {
+    "paths": [
+      "~/.agent-master/mcp.json",
+      "~/.claude.json",
+      "~/.vscode/extensions/mcp/settings.json",
+      "~/Library/Application Support/Cursor/User/globalStorage/settings.json",
+      "~/.windsurf/mcp.json",
+      "~/.config/zed/mcp.json"
+    ],
+    "excludePatterns": [
+      "*.backup",
+      "*.tmp",
+      ".git",
+      "node_modules"
+    ],
+    "events": ["create", "modify", "delete", "rename"],
+    "debounceDelay": 500,
+    "maxRetries": 3,
+    "retryDelay": 1000
+  }
+}

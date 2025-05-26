@@ -1,0 +1,53 @@
+{
+  "description": "Edge cases and problematic server names that require sanitization",
+  "servers": {
+    "@21st-dev/magic": {
+      "command": "bunx",
+      "args": ["@21st-dev/magic@latest"],
+      "transport": "stdio",
+      "expectedSanitized": "21st-dev-magic"
+    },
+    "Bitcoin SV": {
+      "command": "bunx",
+      "args": ["bsv-mcp@latest"],
+      "transport": "stdio",
+      "expectedSanitized": "Bitcoin-SV"
+    },
+    "server/with/slashes": {
+      "command": "test",
+      "args": [],
+      "transport": "stdio",
+      "expectedSanitized": "server-with-slashes"
+    },
+    "server@with@ats": {
+      "command": "test",
+      "args": [],
+      "transport": "stdio",
+      "expectedSanitized": "serverwithats"
+    },
+    "server!with#special$chars": {
+      "command": "test",
+      "args": [],
+      "transport": "stdio",
+      "expectedSanitized": "serverwithspecialchars"
+    },
+    "server..with..dots": {
+      "command": "test",
+      "args": [],
+      "transport": "stdio",
+      "expectedSanitized": "server--with--dots"
+    },
+    "UPPERCASE_SERVER": {
+      "command": "test",
+      "args": [],
+      "transport": "stdio",
+      "expectedSanitized": "UPPERCASE_SERVER"
+    },
+    "server-with-valid_chars": {
+      "command": "test",
+      "args": [],
+      "transport": "stdio",
+      "expectedSanitized": "server-with-valid_chars"
+    }
+  }
+}

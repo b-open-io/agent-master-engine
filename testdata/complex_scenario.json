@@ -1,0 +1,138 @@
+{
+  "description": "Complex real-world scenario with multiple projects and edge cases",
+  "masterConfig": {
+    "servers": {
+      "memory": {
+        "command": "bunx",
+        "args": ["@modelcontextprotocol/server-memory@latest"],
+        "transport": "stdio",
+        "_internal": {
+          "enabled": true,
+          "syncTargets": ["all"]
+        }
+      },
+      "@21st-dev/magic": {
+        "command": "bunx",
+        "args": ["@21st-dev/magic@latest"],
+        "transport": "stdio",
+        "_internal": {
+          "enabled": true,
+          "syncTargets": ["claude-code", "vscode"],
+          "excludeFromTargets": ["cursor"]
+        }
+      },
+      "Bitcoin SV": {
+        "command": "bunx",
+        "args": ["bsv-mcp@latest"],
+        "transport": "stdio",
+        "_internal": {
+          "enabled": false,
+          "syncTargets": ["all"],
+          "disabledReason": "Causing performance issues"
+        }
+      },
+      "github-personal": {
+        "command": "bunx",
+        "args": ["@modelcontextprotocol/server-github@latest"],
+        "transport": "stdio",
+        "env": {
+          "GITHUB_ACCESS_TOKEN": "${GITHUB_PERSONAL_TOKEN}"
+        },
+        "_internal": {
+          "enabled": true,
+          "syncTargets": ["claude-code"],
+          "projectSpecific": true,
+          "projectPaths": ["/Users/satchmo/code/personal-projects"]
+        }
+      },
+      "github-work": {
+        "command": "bunx",
+        "args": ["@modelcontextprotocol/server-github@latest"],
+        "transport": "stdio",
+        "env": {
+          "GITHUB_ACCESS_TOKEN": "${GITHUB_WORK_TOKEN}"
+        },
+        "_internal": {
+          "enabled": true,
+          "syncTargets": ["all"],
+          "excludeFromTargets": [],
+          "projectSpecific": true,
+          "projectPaths": ["/Users/satchmo/code/work-projects"]
+        }
+      }
+    }
+  },
+  "projectConfigs": {
+    "/Users/satchmo/code/agent-master": {
+      "mcpServers": {
+        "memory": {
+          "inherited": true
+        },
+        "filesystem": {
+          "command": "bunx",
+          "args": ["@modelcontextprotocol/server-filesystem@latest", "/Users/satchmo/code/agent-master"],
+          "transport": "stdio",
+          "projectOnly": true
+        }
+      }
+    },
+    "/Users/satchmo/code/bitcoin-auth-pwa": {
+      "mcpServers": {
+        "Bitcoin-SV": {
+          "command": "bunx",
+          "args": ["bsv-mcp@latest"],
+          "transport": "stdio",
+          "overrideGlobalDisabled": true
+        },
+        "memory": {
+          "inherited": true
+        }
+      }
+    },
+    "/Users/satchmo/code/work-projects/client-app": {
+      "mcpServers": {
+        "github-work": {
+          "inherited": true
+        },
+        "client-api": {
+          "url": "https://client.example.com/mcp/sse",
+          "transport": "sse",
+          "headers": {
+            "Authorization": "Bearer ${CLIENT_API_TOKEN}"
+          },
+          "projectOnly": true
+        }
+      }
+    }
+  },
+  "expectedSyncResults": {
+    "claude-code": {
+      "globalServers": ["memory", "21st-dev-magic", "github-personal"],
+      "projects": {
+        "/Users/satchmo/code/agent-master": ["memory", "filesystem"],
+        "/Users/satchmo/code/bitcoin-auth-pwa": ["Bitcoin-SV", "memory"],
+        "/Users/satchmo/code/work-projects/client-app": ["github-work", "client-api"]
+      }
+    },
+    "vscode": {
+      "servers": ["memory", "21st-dev-magic", "github-work"],
+      "notes": "VSCode doesn't support project-level configs, so project-only servers are excluded"
+    },
+    "cursor": {
+      "servers": ["memory", "github-work"],
+      "notes": "@21st-dev/magic is excluded from cursor target"
+    }
+  },
+  "edgeCaseHandling": {
+    "sanitization": {
+      "@21st-dev/magic": "21st-dev-magic",
+      "Bitcoin SV": "Bitcoin-SV"
+    },
+    "conflicts": {
+      "github": "Two different github configs (personal/work) resolved by project paths"
+    },
+    "overrides": {
+      "Bitcoin SV": "Globally disabled but enabled in bitcoin-auth-pwa project"
+    }
+  }
+}

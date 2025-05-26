@@ -1,0 +1,59 @@
+# Binaries
+test
+real-test
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+**/cmd/*/main
+
+# Go workspace
+go.work
+go.work.sum
+
+# Dependency directories
+vendor/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+
+# Coverage
+*.out
+coverage.txt
+coverage.html
+
+# Internal documentation
+internal-docs/
+
+# Generated config files (examples and tests)
+mcp-config.json
+examples/mcp-config.json
+config.json
+!testdata/*.json
+
+# Backup directories
+.backups/
+**/.backups/
+
+# Generated example outputs
+examples/mcp-config.json
+examples/.claude/

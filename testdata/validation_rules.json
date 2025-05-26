@@ -1,0 +1,134 @@
+{
+  "description": "Validation rules for MCP server configurations",
+  "transportTypes": {
+    "stdio": {
+      "required": ["command", "transport"],
+      "optional": ["args", "env"],
+      "forbidden": ["url", "headers"],
+      "validation": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Executable command or path"
+        },
+        "args": {
+          "type": "array",
+          "items": "string",
+          "description": "Command line arguments"
+        },
+        "env": {
+          "type": "object",
+          "additionalProperties": "string",
+          "description": "Environment variables"
+        }
+      }
+    },
+    "sse": {
+      "required": ["url", "transport"],
+      "optional": ["headers"],
+      "forbidden": ["command", "args", "env"],
+      "validation": {
+        "url": {
+          "type": "string",
+          "pattern": "^https?://",
+          "description": "SSE endpoint URL"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": "string",
+          "description": "HTTP headers for SSE connection"
+        }
+      }
+    }
+  },
+  "serverNameRules": {
+    "claude-code": {
+      "pattern": "^[a-zA-Z0-9_-]{1,64}$",
+      "maxLength": 64,
+      "allowedChars": "alphanumeric, underscore, hyphen",
+      "requiresSanitization": true
+    },
+    "default": {
+      "pattern": "^[^\\x00-\\x1F\\x7F]+$",
+      "maxLength": 256,
+      "allowedChars": "any except control characters",
+      "requiresSanitization": false
+    }
+  },
+  "commonValidations": {
+    "transport": {
+      "type": "string",
+      "enum": ["stdio", "sse"],
+      "required": true
+    },
+    "environmentVariables": {
+      "pattern": "^\\$\\{[A-Z_][A-Z0-9_]*\\}$",
+      "description": "Environment variable references must use ${VAR_NAME} format"
+    },
+    "projectPaths": {
+      "type": "string",
+      "pattern": "^(/|~)",
+      "description": "Must be absolute paths or start with ~"
+    }
+  },
+  "internalFields": {
+    "_internal": {
+      "description": "Agent-master specific fields not written to targets",
+      "fields": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "syncTargets": {
+          "type": "array",
+          "items": {
+            "enum": ["all", "claude-code", "vscode", "cursor", "windsurf", "zed"]
+          },
+          "default": ["all"]
+        },
+        "excludeFromTargets": {
+          "type": "array",
+          "items": "string",
+          "default": []
+        },
+        "projectSpecific": {
+          "type": "boolean",
+          "default": false
+        },
+        "projectPaths": {
+          "type": "array",
+          "items": "string",
+          "description": "Paths where this server should be available"
+        },
+        "source": {
+          "type": "string",
+          "enum": ["user", "imported", "preset", "discovered"],
+          "default": "user"
+        },
+        "lastModified": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "errorCount": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0
+        },
+        "lastError": {
+          "type": ["string", "null"],
+          "default": null
+        }
+      }
+    }
+  },
+  "validationErrors": {
+    "INVALID_TRANSPORT": "Transport must be 'stdio' or 'sse'",
+    "MISSING_COMMAND": "stdio transport requires 'command' field",
+    "MISSING_URL": "sse transport requires 'url' field",
+    "INVALID_SERVER_NAME": "Server name contains invalid characters",
+    "INVALID_ENV_VAR": "Environment variable must use ${VAR_NAME} format",
+    "CONFLICTING_FIELDS": "Cannot specify both stdio and sse fields",
+    "INVALID_PROJECT_PATH": "Project path must be absolute",
+    "DUPLICATE_SERVER_NAME": "Server name already exists"
+  }
+}

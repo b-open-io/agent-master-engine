@@ -1,0 +1,61 @@
+{
+  "description": "Test vectors for stdio transport MCP servers",
+  "servers": {
+    "memory": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-memory@latest"],
+      "transport": "stdio"
+    },
+    "puppeteer": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-puppeteer@latest"],
+      "transport": "stdio"
+    },
+    "filesystem": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-filesystem@latest", "/Users/satchmo"],
+      "transport": "stdio"
+    },
+    "git": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-git@latest"],
+      "transport": "stdio"
+    },
+    "github": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-github@latest"],
+      "transport": "stdio",
+      "env": {
+        "GITHUB_ACCESS_TOKEN": "placeholder"
+      }
+    },
+    "playwright": {
+      "command": "bunx",
+      "args": ["@21st-dev/playwright@latest"],
+      "transport": "stdio"
+    },
+    "magic": {
+      "command": "bunx",
+      "args": ["@21st-dev/magic@latest"],
+      "transport": "stdio"
+    },
+    "Bitcoin_SV": {
+      "command": "bunx",
+      "args": ["bsv-mcp@latest"],
+      "transport": "stdio"
+    },
+    "anthropic": {
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-anthropic@latest"],
+      "transport": "stdio",
+      "env": {
+        "ANTHROPIC_API_KEY": "placeholder"
+      }
+    },
+    "obsidian": {
+      "command": "bunx",
+      "args": ["mcp-obsidian", "/Users/satchmo/Library/Mobile Documents/iCloud~md~obsidian/Documents/Homestead"],
+      "transport": "stdio"
+    }
+  }
+}

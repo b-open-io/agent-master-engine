@@ -1,0 +1,27 @@
+{
+  "description": "Test vectors for SSE (Server-Sent Events) transport MCP servers",
+  "servers": {
+    "Zapier_MCP": {
+      "url": "https://plugins.zapier.com/api/v1/mcp",
+      "transport": "sse",
+      "headers": {
+        "X-API-Key": "placeholder"
+      }
+    },
+    "bsv_mcp_hosted": {
+      "url": "https://bsv-mcp.yutongshen.com/sse",
+      "transport": "sse"
+    },
+    "Bubble": {
+      "url": "https://sdfsdfsdf.bubbleapps.io/version-test/mcp/sse/1730833764665x492621125968879600",
+      "transport": "sse"
+    },
+    "n8n": {
+      "url": "https://n8n.local/webhook/model-context-protocol/sse",
+      "transport": "sse",
+      "headers": {
+        "Authorization": "Bearer placeholder"
+      }
+    }
+  }
+}
