@@ -5,7 +5,26 @@ All notable changes to the Agent Master Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.2] - 2024-05-26
+## [0.1.3] - 2025-01-27
+
+### Changed
+- Major refactoring: Broke down engine_impl.go from 1,370 lines to 571 lines (58% reduction)
+- Extracted logical modules into separate files:
+  - `server_manager.go` (199 lines) - Server CRUD operations
+  - `config_manager.go` (93 lines) - Configuration management
+  - `backup_manager.go` (169 lines) - Backup and restore functionality
+  - `import_export.go` (225 lines) - Import/export operations
+  - `destination_manager.go` (161 lines) - Destination and target management
+  - `autosync_manager.go` (359 lines) - Auto-sync functionality
+  - `event_bus.go` (108 lines) - Event handling system
+  - `helpers.go` (41 lines) - Common utility functions
+- Improved code organization and maintainability
+- Better separation of concerns with single-responsibility modules
+
+### Fixed
+- Auto-sync now properly triggers on programmatic config changes via SetConfig()
+
+## [0.1.2] - 2024-05-26
 
 ### Added
 - MCP configuration format parsing support (`mcp_types.go`)
@@ -45,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - OAuth 2.1 authorization metadata preserved for future implementation
   - Streamable HTTP transport treated as stdio for compatibility
 
-## [1.0.1] - 2024-05-26
+## [0.1.1] - 2024-05-26
 
 ### Added
 - Redis storage adapter implementation
@@ -60,7 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Git repository initialization issues
 - File staging problems with .gitignore patterns
 
-## [1.0.0] - 2024-05-26
+## [0.1.0] - 2024-05-26
 
 ### Added
 - Initial release of Agent Master Engine
