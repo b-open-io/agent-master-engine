@@ -5,6 +5,19 @@ All notable changes to the Agent Master Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2025-05-27
+
+### Fixed
+- `LoadConfig()` now properly loads configuration from the specified file path when provided
+  - Previously, `LoadConfig(path)` only set the internal config path but always loaded from storage
+  - Now it reads from the actual file first, then falls back to storage if the file doesn't exist
+  - This fixes auto-sync functionality not detecting file changes properly
+  - **Note**: This is a backward-compatible fix - existing behavior is preserved when no file exists
+
+### Added
+- Test coverage for agent-master auto-sync scenario (`TestAutoSyncAgentMasterScenario`)
+- Test coverage for file watching with actual file system changes (`TestAutoSyncFileWatchingMCPConfig`)
+
 ## [0.1.3] - 2025-01-27
 
 ### Changed

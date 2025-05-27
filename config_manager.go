@@ -1,7 +1,9 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -14,7 +16,37 @@ func (e *engineImpl) LoadConfig(path string) error {
 
 	e.configPath = path
 
-	// Try to load from storage
+	// If a file path is provided and exists, load from file
+	if path != "" {
+		expandedPath := expandPath(path)
+		if data, err := os.ReadFile(expandedPath); err == nil {
+			// Parse the config from file
+			var fileConfig Config
+			if err := json.Unmarshal(data, &fileConfig); err != nil {
+				return fmt.Errorf("failed to parse config from file: %w", err)
+			}
+			
+			// Update the engine's config
+			e.config = &fileConfig
+			
+			// Also save to storage for consistency
+			if err := SaveJSON(e.storage, Keys.Config(), e.config); err != nil {
+				// Log but don't fail - file is the source of truth
+				e.eventBus.emit(EventWarning, fmt.Sprintf("failed to save config to storage: %v", err))
+			}
+			
+			// Emit event
+			e.eventBus.emit(EventConfigLoaded, ConfigChange{
+				Type:      "config-loaded",
+				Timestamp: time.Now(),
+				Source:    "file",
+			})
+			
+			return nil
+		}
+	}
+
+	// Fall back to loading from storage
 	if err := LoadJSON(e.storage, Keys.Config(), &e.config); err != nil {
 		// If not found, that's OK - we'll use defaults
 		if !isNotFoundError(err) {
