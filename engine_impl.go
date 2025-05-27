@@ -442,7 +442,22 @@ func (e *engineImpl) ListProjects() ([]*ProjectInfo, error) {
 // Import/Export and Backup methods moved to import_export.go and backup_manager.go
 
 func (e *engineImpl) OnConfigChange(handler ConfigChangeHandler) func() {
-	return e.eventBus.on(EventConfigLoaded, handler)
+	// Subscribe to all config-related events
+	unsubscribers := []func(){
+		e.eventBus.on(EventConfigLoaded, handler),
+		e.eventBus.on(EventConfigSaved, handler),
+		e.eventBus.on(EventConfigChanged, handler),
+		e.eventBus.on(EventAutoSyncStarted, handler),
+		e.eventBus.on(EventAutoSyncStopped, handler),
+		e.eventBus.on(EventFileChanged, handler),
+	}
+	
+	// Return a function that unsubscribes from all
+	return func() {
+		for _, unsub := range unsubscribers {
+			unsub()
+		}
+	}
 }
 
 func (e *engineImpl) OnSyncComplete(handler SyncCompleteHandler) func() {

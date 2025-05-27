@@ -127,9 +127,10 @@ func (asm *autoSyncManager) Start(config AutoSyncConfig) error {
 	}()
 
 	// Emit event
-	asm.engine.eventBus.emit(EventAutoSyncStarted, ConfigChangeEvent{
-		Config:     asm.engine.config,
-		ChangeType: "autosync-started",
+	asm.engine.eventBus.emit(EventAutoSyncStarted, ConfigChange{
+		Type:      "autosync-started",
+		Timestamp: time.Now(),
+		Source:    "autosync",
 	})
 
 	return nil
@@ -166,9 +167,10 @@ func (asm *autoSyncManager) Stop() error {
 	asm.mu.Unlock()
 
 	// Emit event
-	asm.engine.eventBus.emit(EventAutoSyncStopped, ConfigChangeEvent{
-		Config:     asm.engine.config,
-		ChangeType: "autosync-stopped",
+	asm.engine.eventBus.emit(EventAutoSyncStopped, ConfigChange{
+		Type:      "autosync-stopped",
+		Timestamp: time.Now(),
+		Source:    "autosync",
 	})
 
 	return nil
@@ -207,9 +209,11 @@ func (asm *autoSyncManager) watchLoop() {
 			}
 
 			// Emit file change event
-			asm.engine.eventBus.emit(EventFileChanged, ConfigChangeEvent{
-				Config:     asm.engine.config,
-				ChangeType: asm.getChangeType(event),
+			asm.engine.eventBus.emit(EventFileChanged, ConfigChange{
+				Type:      asm.getChangeType(event),
+				Timestamp: time.Now(),
+				Source:    "file-watcher",
+				Name:      event.Name,
 			})
 
 			// Debounce sync

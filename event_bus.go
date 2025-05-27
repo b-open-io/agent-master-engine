@@ -73,9 +73,14 @@ func (eb *eventBus) emit(event EventType, data interface{}) {
 		// Call handler in goroutine to prevent blocking
 		go func(h interface{}) {
 			switch event {
-			case EventConfigLoaded, EventConfigSaved, EventConfigChanged:
-				if fn, ok := h.(func(ConfigChangeEvent)); ok {
-					if evt, ok := data.(ConfigChangeEvent); ok {
+			case EventConfigLoaded, EventConfigSaved, EventConfigChanged,
+				EventAutoSyncStarted, EventAutoSyncStopped, EventFileChanged:
+				if fn, ok := h.(func(ConfigChange)); ok {
+					if evt, ok := data.(ConfigChange); ok {
+						fn(evt)
+					}
+				} else if fn, ok := h.(ConfigChangeHandler); ok {
+					if evt, ok := data.(ConfigChange); ok {
 						fn(evt)
 					}
 				}

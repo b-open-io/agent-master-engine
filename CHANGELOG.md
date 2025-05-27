@@ -5,6 +5,18 @@ All notable changes to the Agent Master Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.5] - 2025-05-27
+
+### Fixed
+- Auto-sync events (`EventAutoSyncStarted`, `EventAutoSyncStopped`, `EventFileChanged`) are now properly routed through `OnConfigChange` handler
+  - Fixed event bus to handle both `func(ConfigChange)` and `ConfigChangeHandler` type handlers
+  - Changed auto-sync events to emit `ConfigChange` type instead of `ConfigChangeEvent` for consistency
+  - `OnConfigChange` now subscribes to all config-related events including auto-sync events
+  - **Note**: This is a backward-compatible fix - existing event handlers continue to work
+
+### Changed
+- `OnConfigChange` now subscribes to multiple event types (config, auto-sync, file changes) instead of just `EventConfigLoaded`
+
 ## [0.1.4] - 2025-05-27
 
 ### Fixed
