@@ -31,6 +31,11 @@ const (
 	// Error Events
 	EventError   EventType = "error"
 	EventWarning EventType = "warning"
+
+	// Additional Events
+	EventConfigChanged  EventType = "config.changed"
+	EventBackupCreated  EventType = "backup.created"
+	EventBackupRestored EventType = "backup.restored"
 )
 
 // LogLevel represents logging levels

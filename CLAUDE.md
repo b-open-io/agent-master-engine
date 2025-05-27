@@ -37,25 +37,32 @@ The engine is intentionally platform-agnostic:
 ### ✅ Fully Implemented
 - Configuration management (load, save, get, set)
 - Server CRUD operations with validation
-- Storage abstraction with file and memory implementations
+- Storage abstraction with file, memory, and Redis implementations
 - Event system with typed events
-- Basic sync to destinations
+- Single destination sync (SyncTo)
+- Multi-destination sync (SyncToMultiple) - sync to multiple targets concurrently
+- Sync preview (PreviewSync) - see changes before applying
+- Auto-sync functionality with file watching and debouncing
+- Import functionality with MCP format parsing
 - Generic destination system with transformers
 - Validation and sanitization interfaces
 - Type definitions for all major structures
+- Variable substitution (optional for environment variables)
+- Support for multiple MCP configuration formats
 
 ### 🚧 Partially Implemented
-- Sync operations (basic structure complete, needs advanced features)
-- Change detection (simple comparison implemented)
+- Change detection (basic comparison implemented)
 - Destination management (basic registration/listing)
 
 ### ❌ Not Yet Implemented
-- Project management functions
-- Auto-sync functionality
-- Import/Export operations
+- Project management functions (ScanForProjects, RegisterProject, etc.)
+- Export operations (Export, ExportToFile)
 - Backup/Restore system
+- Config merging (MergeConfigs)
+- Import from target (ImportFromTarget)
 - Advanced sync features (merge strategies, conflict resolution)
 - Health checks and diagnostics
+- Input variable collection (${input:xxx} patterns)
 
 ## Code Style Guidelines
 

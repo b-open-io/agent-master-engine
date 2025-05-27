@@ -241,10 +241,12 @@ type AutoSyncStatus struct {
 
 // BackupInfo contains backup details
 type BackupInfo struct {
-	Path      string    `json:"path"`
-	Timestamp time.Time `json:"timestamp"`
-	Size      int64     `json:"size"`
-	Type      string    `json:"type"` // "manual", "auto", "pre-sync"
+	ID          string    `json:"id"`
+	Path        string    `json:"path"`
+	Timestamp   time.Time `json:"timestamp"`
+	Size        int64     `json:"size"`
+	Type        string    `json:"type"` // "manual", "auto", "pre-sync"
+	Description string    `json:"description,omitempty"`
 }
 
 // TargetConfig represents legacy target configuration

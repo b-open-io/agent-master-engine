@@ -4,13 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync"
 	"time"
-
-	"github.com/fsnotify/fsnotify"
 )
 
 // engineImpl is the concrete implementation of Engine interface
@@ -104,401 +99,19 @@ func NewEngine(opts ...Option) (Engine, error) {
 	return e, nil
 }
 
-// Configuration Management
-func (e *engineImpl) LoadConfig(path string) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+// Configuration Management methods moved to config_manager.go
 
-	e.configPath = path
+// Server Management methods moved to server_manager.go
 
-	// Try to load from storage
-	if err := LoadJSON(e.storage, Keys.Config(), &e.config); err != nil {
-		// If not found, that's OK - we'll use defaults
-		if !isNotFoundError(err) {
-			return fmt.Errorf("failed to load config: %w", err)
-		}
-	}
-
-	// Emit event
-	e.eventBus.emit(EventConfigLoaded, ConfigChange{
-		Type:      "config-loaded",
-		Timestamp: time.Now(),
-		Source:    "storage",
-	})
-
-	return nil
-}
-
-func (e *engineImpl) SaveConfig() error {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	return e.saveConfigNoLock()
-}
-
-// saveConfigNoLock saves config without acquiring lock (caller must hold lock)
-func (e *engineImpl) saveConfigNoLock() error {
-	if err := SaveJSON(e.storage, Keys.Config(), e.config); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
-	}
-
-	e.eventBus.emit(EventConfigSaved, ConfigChange{
-		Type:      "config-saved",
-		Timestamp: time.Now(),
-		Source:    "user",
-	})
-
-	return nil
-}
-
-func (e *engineImpl) GetConfig() (*Config, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	// Return copy to prevent external modification
-	configCopy := *e.config
-	return &configCopy, nil
-}
-
-func (e *engineImpl) SetConfigPath(path string) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.configPath = path
-}
-
-func (e *engineImpl) SetConfig(config *Config) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if config == nil {
-		return fmt.Errorf("config cannot be nil")
-	}
-
-	e.config = config
-	return e.saveConfigNoLock()
-}
-
-// ValidateServer validates a server configuration
-func ValidateServer(name string, config ServerConfig) error {
-	// Basic validation
-	if name == "" {
-		return fmt.Errorf("server name cannot be empty")
-	}
-	if config.Transport != "stdio" && config.Transport != "sse" {
-		return fmt.Errorf("invalid transport: %s", config.Transport)
-	}
-	if config.Transport == "stdio" && config.Command == "" {
-		return fmt.Errorf("stdio transport requires command")
-	}
-	if config.Transport == "sse" && config.URL == "" {
-		return fmt.Errorf("sse transport requires URL")
-	}
-	return nil
-}
-
-// SanitizeServerName sanitizes a server name
-func SanitizeServerName(name string) string {
-	// Basic sanitization - remove spaces and special characters
-	sanitized := strings.TrimSpace(name)
-	// Replace spaces with hyphens
-	sanitized = strings.ReplaceAll(sanitized, " ", "-")
-	// Remove any non-alphanumeric characters except hyphens and underscores
-	// This is a simple implementation - can be enhanced with regex
-	return sanitized
-}
-
-// Server Management
-func (e *engineImpl) AddServer(name string, server ServerConfig) error {
-	// Validate server
-	if err := ValidateServer(name, server); err != nil {
-		return err
-	}
-
-	// Optional: Test server if validator supports it
-	// TODO: Add server testing capability to validator interface
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	// Check for duplicates
-	if _, exists := e.config.Servers[name]; exists {
-		return fmt.Errorf("server %q already exists", name)
-	}
-
-	// Add with default metadata
-	e.config.Servers[name] = ServerWithMetadata{
-		ServerConfig: server,
-		Internal: InternalMetadata{
-			Enabled:      true,
-			SyncTargets:  []string{"all"},
-			Source:       "user",
-			LastModified: time.Now(),
-		},
-	}
-
-	// Save config (without lock since we already hold it)
-	if err := e.saveConfigNoLock(); err != nil {
-		return err
-	}
-
-	e.eventBus.emit(EventServerAdded, ConfigChange{
-		Type:      "server-added",
-		Name:      name,
-		Timestamp: time.Now(),
-		Source:    "user",
-	})
-
-	return nil
-}
-
-func (e *engineImpl) UpdateServer(name string, server ServerConfig) error {
-	// Validate server
-	if err := ValidateServer(name, server); err != nil {
-		return err
-	}
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	existing, exists := e.config.Servers[name]
-	if !exists {
-		return fmt.Errorf("server %q not found", name)
-	}
-
-	// Update config, preserve metadata
-	existing.ServerConfig = server
-	existing.Internal.LastModified = time.Now()
-	e.config.Servers[name] = existing
-
-	// Save config (without lock since we already hold it)
-	if err := e.saveConfigNoLock(); err != nil {
-		return err
-	}
-
-	e.eventBus.emit(EventServerUpdated, ConfigChange{
-		Type:      "server-updated",
-		Name:      name,
-		Timestamp: time.Now(),
-		Source:    "user",
-	})
-
-	return nil
-}
-
-func (e *engineImpl) RemoveServer(name string) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if _, exists := e.config.Servers[name]; !exists {
-		return fmt.Errorf("server %q not found", name)
-	}
-
-	delete(e.config.Servers, name)
-
-	// Save config (without lock since we already hold it)
-	if err := e.saveConfigNoLock(); err != nil {
-		return err
-	}
-
-	e.eventBus.emit(EventServerRemoved, ConfigChange{
-		Type:      "server-removed",
-		Name:      name,
-		Timestamp: time.Now(),
-		Source:    "user",
-	})
-
-	return nil
-}
-
-func (e *engineImpl) GetServer(name string) (*ServerWithMetadata, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	server, exists := e.config.Servers[name]
-	if !exists {
-		return nil, fmt.Errorf("server %q not found", name)
-	}
-
-	// Return copy
-	serverCopy := server
-	return &serverCopy, nil
-}
-
-func (e *engineImpl) ListServers(filter ServerFilter) ([]*ServerInfo, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	var servers []*ServerInfo
-
-	for name, server := range e.config.Servers {
-		// Apply filters
-		if filter.Enabled != nil && server.Internal.Enabled != *filter.Enabled {
-			continue
-		}
-
-		if filter.Transport != "" && server.Transport != filter.Transport {
-			continue
-		}
-
-		if filter.Source != "" && server.Internal.Source != filter.Source {
-			continue
-		}
-
-		// TODO: Implement other filters
-
-		info := &ServerInfo{
-			Name:            name,
-			Transport:       server.Transport,
-			Enabled:         server.Internal.Enabled,
-			SyncTargetCount: len(server.Internal.SyncTargets),
-			LastModified:    server.Internal.LastModified,
-			HasErrors:       server.Internal.ErrorCount > 0,
-		}
-
-		servers = append(servers, info)
-	}
-
-	return servers, nil
-}
-
-func (e *engineImpl) ValidateServer(name string, server ServerConfig) error {
-	return ValidateServer(name, server)
-}
-
-func (e *engineImpl) SanitizeServerName(name string) string {
-	return SanitizeServerName(name)
-}
-
-func (e *engineImpl) SanitizeName(name string) string {
-	// Use sanitizer if set
-	if e.sanitizer != nil {
-		return e.sanitizer.Sanitize(name)
-	}
-	// Fall back to basic sanitization
-	return SanitizeServerName(name)
-}
-
-func (e *engineImpl) SetSanitizer(sanitizer NameSanitizer) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.sanitizer = sanitizer
-}
-
-func (e *engineImpl) SetValidator(validator ServerValidator) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	e.validator = validator
-}
-
-// Target Management (Legacy - use Destinations instead)
-func (e *engineImpl) RegisterTarget(target TargetConfig) error {
-	// Legacy method - targets are now handled as destinations
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if e.config.Targets == nil {
-		e.config.Targets = make(map[string]TargetConfig)
-	}
-	e.config.Targets[target.Name] = target
-
-	return e.saveConfigNoLock()
-}
-
-func (e *engineImpl) RemoveTarget(name string) error {
-	// Legacy method - targets are now handled as destinations
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if e.config.Targets == nil {
-		return fmt.Errorf("target %q not found", name)
-	}
-
-	if _, exists := e.config.Targets[name]; !exists {
-		return fmt.Errorf("target %q not found", name)
-	}
-
-	delete(e.config.Targets, name)
-
-	return e.saveConfigNoLock()
-}
-
-func (e *engineImpl) GetTarget(name string) (*TargetConfig, error) {
-	// Legacy method
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	if e.config.Targets == nil {
-		return nil, fmt.Errorf("target %q not found", name)
-	}
-
-	target, exists := e.config.Targets[name]
-	if !exists {
-		return nil, fmt.Errorf("target %q not found", name)
-	}
-
-	targetCopy := target
-	return &targetCopy, nil
-}
-
-func (e *engineImpl) ListTargets() ([]*TargetInfo, error) {
-	// Legacy method
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	var targets []*TargetInfo
-
-	if e.config.Targets != nil {
-		for name, target := range e.config.Targets {
-			info := &TargetInfo{
-				Name:       name,
-				Type:       target.Type,
-				Enabled:    target.Enabled,
-				ConfigPath: target.ConfigPath,
-			}
-
-			// Count servers for this target
-			count := 0
-			for _, server := range e.config.Servers {
-				if server.Internal.Enabled && e.shouldSyncToTarget(server, name) {
-					count++
-				}
-			}
-			info.ServerCount = count
-
-			targets = append(targets, info)
-		}
-	}
-
-	return targets, nil
-}
+// Target Management methods moved to destination_manager.go
 
 // Helper methods
 // NOTE: Default destinations are now handled by the presets package
 // Use presets.LoadPreset("claude") instead of hardcoding platform specifics
 
-func (e *engineImpl) shouldSyncToTarget(server ServerWithMetadata, target string) bool {
-	// Check exclusions first
-	for _, excluded := range server.Internal.ExcludeFromTargets {
-		if excluded == target {
-			return false
-		}
-	}
+// shouldSyncToTarget moved to destination_manager.go
 
-	// Check inclusions
-	for _, included := range server.Internal.SyncTargets {
-		if included == "all" || included == target {
-			return true
-		}
-	}
-
-	return false
-}
-
-// Helper functions
-func isNotFoundError(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "not found")
-}
+// Helper functions moved to helpers.go
 
 // Option configuration
 type Option func(*engineConfig) error
@@ -534,59 +147,6 @@ func WithDefaultTargets() Option {
 	return func(cfg *engineConfig) error {
 		cfg.useDefaultTargets = true
 		return nil
-	}
-}
-
-// Event bus implementation
-type eventBus struct {
-	mu       sync.RWMutex
-	handlers map[EventType][]interface{}
-}
-
-func newEventBus() *eventBus {
-	return &eventBus{
-		handlers: make(map[EventType][]interface{}),
-	}
-}
-
-func (eb *eventBus) on(event EventType, handler interface{}) func() {
-	eb.mu.Lock()
-	defer eb.mu.Unlock()
-
-	eb.handlers[event] = append(eb.handlers[event], handler)
-
-	// Return unsubscribe function
-	return func() {
-		eb.mu.Lock()
-		defer eb.mu.Unlock()
-
-		if handlers, ok := eb.handlers[event]; ok {
-			for i, h := range handlers {
-				if &h == &handler {
-					eb.handlers[event] = append(handlers[:i], handlers[i+1:]...)
-					break
-				}
-			}
-		}
-	}
-}
-
-func (eb *eventBus) emit(event EventType, data interface{}) {
-	eb.mu.RLock()
-	handlers := eb.handlers[event]
-	eb.mu.RUnlock()
-
-	for _, handler := range handlers {
-		// Call handler in goroutine to prevent blocking
-		go func(h interface{}) {
-			switch event {
-			case EventConfigLoaded, EventConfigSaved, EventServerAdded, EventServerUpdated, EventServerRemoved:
-				if fn, ok := h.(func(ConfigChange)); ok {
-					fn(data.(ConfigChange))
-				}
-				// Add other event types...
-			}
-		}(handler)
 	}
 }
 
@@ -693,8 +253,61 @@ func (e *engineImpl) SyncTo(ctx context.Context, dest Destination, options SyncO
 }
 
 func (e *engineImpl) SyncToMultiple(ctx context.Context, dests []Destination, options SyncOptions) (*MultiSyncResult, error) {
-	// TODO: Implement sync to multiple destinations
-	return nil, fmt.Errorf("not implemented")
+	if len(dests) == 0 {
+		return nil, fmt.Errorf("no destinations provided")
+	}
+
+	result := &MultiSyncResult{
+		Results:       make([]SyncResult, 0, len(dests)),
+		TotalDuration: 0,
+		SuccessCount:  0,
+		FailureCount:  0,
+	}
+
+	start := time.Now()
+	
+	// Use a wait group to sync concurrently
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	
+	for _, dest := range dests {
+		wg.Add(1)
+		go func(d Destination) {
+			defer wg.Done()
+			
+			syncResult, err := e.SyncTo(ctx, d, options)
+			
+			mu.Lock()
+			defer mu.Unlock()
+			
+			if err != nil {
+				// Still add the result even if there was an error
+				if syncResult == nil {
+					syncResult = &SyncResult{
+						Destination: d.GetID(),
+						Success:     false,
+						Errors: []SyncError{{
+							Error:       err.Error(),
+							Recoverable: false,
+						}},
+						Timestamp: time.Now(),
+					}
+				}
+				result.FailureCount++
+			} else if syncResult.Success {
+				result.SuccessCount++
+			} else {
+				result.FailureCount++
+			}
+			
+			result.Results = append(result.Results, *syncResult)
+		}(dest)
+	}
+	
+	wg.Wait()
+	result.TotalDuration = time.Since(start)
+	
+	return result, nil
 }
 
 func (e *engineImpl) SyncToAllTargets(ctx context.Context, options SyncOptions) (*MultiSyncResult, error) {
@@ -710,8 +323,99 @@ func (e *engineImpl) GenerateTargetConfig(targetName string) (interface{}, error
 }
 
 func (e *engineImpl) PreviewSync(dest Destination) (*SyncPreview, error) {
-	// TODO: Implement preview for destination
-	return nil, fmt.Errorf("not implemented")
+	e.mu.RLock()
+	currentConfig := e.config
+	e.mu.RUnlock()
+
+	preview := &SyncPreview{
+		Destination:    dest.GetID(),
+		Changes:        []Change{},
+		EstimatedTime:  100 * time.Millisecond, // Rough estimate
+		RequiresBackup: false,
+	}
+
+	// Get the existing config at destination
+	var existingConfig *Config
+	if dest.Exists() {
+		data, err := dest.Read()
+		if err == nil && len(data) > 0 {
+			// Try to parse existing config
+			existingConfig, _ = ParseMCPConfig(data)
+		}
+	}
+
+	// If destination exists and has data, we might want backup
+	if existingConfig != nil && len(existingConfig.Servers) > 0 {
+		preview.RequiresBackup = true
+	}
+
+	// Compare configs to determine changes
+	if existingConfig == nil {
+		// Everything is new
+		for name, server := range currentConfig.Servers {
+			if server.Internal.Enabled {
+				preview.Changes = append(preview.Changes, Change{
+					Type:   "add",
+					Server: name,
+					Before: nil,
+					After:  server.ServerConfig,
+				})
+			}
+		}
+	} else {
+		// Compare existing vs new
+		// Check for updates and removals
+		for name, existingServer := range existingConfig.Servers {
+			if newServer, exists := currentConfig.Servers[name]; exists {
+				if newServer.Internal.Enabled {
+					// Check if changed (simple comparison for now)
+					if !isServerEqual(existingServer.ServerConfig, newServer.ServerConfig) {
+						preview.Changes = append(preview.Changes, Change{
+							Type:   "update",
+							Server: name,
+							Before: existingServer.ServerConfig,
+							After:  newServer.ServerConfig,
+						})
+					}
+				} else {
+					// Disabled, so remove
+					preview.Changes = append(preview.Changes, Change{
+						Type:   "remove",
+						Server: name,
+						Before: existingServer.ServerConfig,
+						After:  nil,
+					})
+				}
+			} else {
+				// Server removed
+				preview.Changes = append(preview.Changes, Change{
+					Type:   "remove",
+					Server: name,
+					Before: existingServer.ServerConfig,
+					After:  nil,
+				})
+			}
+		}
+
+		// Check for new servers
+		for name, server := range currentConfig.Servers {
+			if server.Internal.Enabled {
+				if _, exists := existingConfig.Servers[name]; !exists {
+					preview.Changes = append(preview.Changes, Change{
+						Type:   "add",
+						Server: name,
+						Before: nil,
+						After:  server.ServerConfig,
+					})
+				}
+			}
+		}
+	}
+
+	// Estimate time based on number of changes
+	preview.EstimatedTime = time.Duration(len(preview.Changes)*50) * time.Millisecond
+
+	return preview, nil
 }
 
 func (e *engineImpl) ScanForProjects(paths []string, detector ProjectDetector) ([]*ProjectConfig, error) {
@@ -734,107 +438,8 @@ func (e *engineImpl) ListProjects() ([]*ProjectInfo, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (e *engineImpl) StartAutoSync(config AutoSyncConfig) error {
-	return e.autoSync.Start(config)
-}
 
-func (e *engineImpl) StopAutoSync() error {
-	return e.autoSync.Stop()
-}
-
-func (e *engineImpl) GetAutoSyncStatus() (*AutoSyncStatus, error) {
-	return e.autoSync.GetStatus()
-}
-
-func (e *engineImpl) ImportFromTarget(targetName string, options ImportOptions) (*ImportResult, error) {
-	// TODO: Implement
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (e *engineImpl) ExportToFile(path string, format ExportFormat) error {
-	// TODO: Implement
-	return fmt.Errorf("not implemented")
-}
-
-func (e *engineImpl) MergeConfigs(configs ...*Config) (*Config, error) {
-	// TODO: Implement
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (e *engineImpl) CreateBackup(description string) (*BackupInfo, error) {
-	// TODO: Implement
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (e *engineImpl) ListBackups() ([]*BackupInfo, error) {
-	// TODO: Implement
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (e *engineImpl) RestoreBackup(backupID string) error {
-	// TODO: Implement
-	return fmt.Errorf("not implemented")
-}
-
-func (e *engineImpl) Export(format ExportFormat) ([]byte, error) {
-	// TODO: Implement
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (e *engineImpl) Import(data []byte, format ImportFormat, options ImportOptions) error {
-	// Parse the data using our MCP parser
-	config, err := ParseMCPConfigWithOptions(data, options.SubstituteEnvVars)
-	if err != nil {
-		return fmt.Errorf("failed to parse config: %w", err)
-	}
-
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	// Handle merge options
-	if options.MergeMode == "replace" {
-		// Replace all servers
-		e.config.Servers = make(map[string]ServerWithMetadata)
-	}
-
-	// Import servers
-	importedCount := 0
-	for name, server := range config.Servers {
-		// Skip if server already exists and not overwriting
-		if _, exists := e.config.Servers[name]; exists && !options.OverwriteExisting {
-			continue
-		}
-
-		// Validate server if validator is set
-		if e.validator != nil {
-			if err := e.validator.ValidateServerConfig(name, server.ServerConfig); err != nil {
-				if options.SkipInvalid {
-					continue
-				}
-				return fmt.Errorf("invalid server %q: %w", name, err)
-			}
-		}
-
-		// Add server with metadata
-		e.config.Servers[name] = server
-		importedCount++
-	}
-
-	// Save configuration
-	if err := e.saveConfigNoLock(); err != nil {
-		return fmt.Errorf("failed to save imported config: %w", err)
-	}
-
-	// Emit event
-	e.eventBus.emit(EventConfigLoaded, ConfigChange{
-		Type:      "config-imported",
-		Timestamp: time.Now(),
-		Source:    "import",
-		Details:   map[string]interface{}{"imported_servers": importedCount},
-	})
-
-	return nil
-}
+// Import/Export and Backup methods moved to import_export.go and backup_manager.go
 
 func (e *engineImpl) OnConfigChange(handler ConfigChangeHandler) func() {
 	return e.eventBus.on(EventConfigLoaded, handler)
@@ -849,128 +454,44 @@ func (e *engineImpl) OnError(handler ErrorHandler) func() {
 	return func() {}
 }
 
-// fileWatcher wraps fsnotify functionality
-type fileWatcher struct {
-	watcher *fsnotify.Watcher
-	paths   map[string]bool
-	mu      sync.RWMutex
-}
-
-// newFileWatcher creates a new file watcher
-func newFileWatcher() (*fileWatcher, error) {
-	watcher, err := fsnotify.NewWatcher()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create file watcher: %w", err)
-	}
-
-	return &fileWatcher{
-		watcher: watcher,
-		paths:   make(map[string]bool),
-	}, nil
-}
-
-// Add adds a path to watch
-func (fw *fileWatcher) Add(path string) error {
-	fw.mu.Lock()
-	defer fw.mu.Unlock()
-
-	// Normalize path
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-
-	// Check if already watching
-	if fw.paths[absPath] {
-		return nil
-	}
-
-	if err := fw.watcher.Add(absPath); err != nil {
-		return err
-	}
-
-	fw.paths[absPath] = true
-	return nil
-}
-
-// Remove removes a path from watching
-func (fw *fileWatcher) Remove(path string) error {
-	fw.mu.Lock()
-	defer fw.mu.Unlock()
-
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return err
-	}
-
-	if !fw.paths[absPath] {
-		return nil
-	}
-
-	if err := fw.watcher.Remove(absPath); err != nil {
-		return err
-	}
-
-	delete(fw.paths, absPath)
-	return nil
-}
-
-// Close closes the watcher
-func (fw *fileWatcher) Close() error {
-	return fw.watcher.Close()
-}
-
-// autoSyncManager handles automatic configuration synchronization
-type autoSyncManager struct {
-	engine        *engineImpl
-	config        AutoSyncConfig
-	isRunning     bool
-	stopChan      chan struct{}
-	watcher       *fileWatcher
-	debounceTimer *time.Timer
-	lastSync      time.Time
-	mu            sync.Mutex
-	wg            sync.WaitGroup
-}
-
-// newAutoSyncManager creates a new auto-sync manager
-func newAutoSyncManager(engine *engineImpl) *autoSyncManager {
-	return &autoSyncManager{
-		engine:   engine,
-		stopChan: make(chan struct{}),
-	}
-}
-
-// calculateChanges compares existing and transformed configs to find differences
+// calculateChanges compares existing and transformed configs to detect changes
 func (e *engineImpl) calculateChanges(existing, transformed interface{}) []Change {
 	changes := []Change{}
 
-	// Convert to maps for comparison
-	existingMap, ok1 := existing.(map[string]interface{})
-	transformedMap, ok2 := transformed.(map[string]interface{})
+	// Extract servers from both configs
+	existingServers := make(map[string]interface{})
+	transformedServers := make(map[string]interface{})
 
-	if !ok1 || !ok2 {
-		return changes
+	// Handle different config formats
+	switch ex := existing.(type) {
+	case map[string]interface{}:
+		if servers, ok := ex["mcpServers"].(map[string]interface{}); ok {
+			existingServers = servers
+		}
+	case *Config:
+		for name, server := range ex.Servers {
+			existingServers[name] = server.ServerConfig
+		}
 	}
 
-	// Get servers from both configs
-	existingServers, _ := existingMap["mcpServers"].(map[string]interface{})
-	transformedServers, _ := transformedMap["mcpServers"].(map[string]interface{})
-
-	if existingServers == nil {
-		existingServers = make(map[string]interface{})
-	}
-	if transformedServers == nil {
-		transformedServers = make(map[string]interface{})
+	switch tr := transformed.(type) {
+	case map[string]interface{}:
+		if servers, ok := tr["mcpServers"].(map[string]interface{}); ok {
+			transformedServers = servers
+		}
+	case *Config:
+		for name, server := range tr.Servers {
+			transformedServers[name] = server.ServerConfig
+		}
 	}
 
 	// Find added servers
-	for name := range transformedServers {
+	for name, server := range transformedServers {
 		if _, exists := existingServers[name]; !exists {
 			changes = append(changes, Change{
 				Type:   "add",
 				Server: name,
-				After:  transformedServers[name],
+				After:  server,
 			})
 		}
 	}
@@ -1006,377 +527,45 @@ func (e *engineImpl) calculateChanges(existing, transformed interface{}) []Chang
 	return changes
 }
 
-// Destination Management
-func (e *engineImpl) RegisterDestination(name string, dest Destination) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
+// Destination Management methods moved to destination_manager.go
 
-	e.destinations[name] = dest
-	return nil
-}
-
-func (e *engineImpl) RemoveDestination(name string) error {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	if _, exists := e.destinations[name]; !exists {
-		return fmt.Errorf("destination %q not found", name)
-	}
-
-	delete(e.destinations, name)
-	return nil
-}
-
-func (e *engineImpl) GetDestination(name string) (Destination, error) {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	dest, exists := e.destinations[name]
-	if !exists {
-		return nil, fmt.Errorf("destination %q not found", name)
-	}
-
-	return dest, nil
-}
-
-func (e *engineImpl) ListDestinations() map[string]Destination {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	// Return copy to prevent external modification
-	result := make(map[string]Destination)
-	for name, dest := range e.destinations {
-		result[name] = dest
-	}
-
-	return result
-}
-
-// Start starts the auto-sync manager
-func (asm *autoSyncManager) Start(config AutoSyncConfig) error {
-	asm.mu.Lock()
-	defer asm.mu.Unlock()
-
-	if asm.isRunning {
-		return fmt.Errorf("auto-sync is already running")
-	}
-
-	// Create file watcher
-	watcher, err := newFileWatcher()
-	if err != nil {
-		return fmt.Errorf("failed to create file watcher: %w", err)
-	}
-
-	asm.config = config
-	asm.watcher = watcher
-	asm.isRunning = true
-	asm.stopChan = make(chan struct{})
-
-	// Watch the config file path
-	configPath := asm.engine.configPath
-	if configPath == "" {
-		// Try to use storage path
-		if storage, ok := asm.engine.storage.(*FileStorage); ok {
-			configPath = filepath.Join(storage.GetBasePath(), "config.json")
-		}
-	}
-
-	if configPath != "" {
-		// Ensure the config file exists
-		if _, err := os.Stat(configPath); err == nil {
-			if err := asm.watcher.Add(configPath); err != nil {
-				asm.watcher.Close()
-				asm.isRunning = false
-				return fmt.Errorf("failed to watch config file: %w", err)
-			}
-
-			// Also watch the directory for new files
-			dir := filepath.Dir(configPath)
-			if err := asm.watcher.Add(dir); err != nil {
-				// Non-fatal: log warning but continue
-				asm.engine.eventBus.emit(EventWarning, fmt.Sprintf("failed to watch directory %s: %v", dir, err))
-			}
-		}
-	}
-
-	// Start the watcher goroutine
-	asm.wg.Add(1)
-	go func() {
-		defer asm.wg.Done()
-		asm.watchLoop()
-	}()
-
-	// Emit event
-	asm.engine.eventBus.emit(EventAutoSyncStarted, ConfigChange{
-		Type:      "autosync-started",
-		Timestamp: time.Now(),
-		Source:    "autosync",
-	})
-
-	return nil
-}
-
-// Stop stops the auto-sync manager
-func (asm *autoSyncManager) Stop() error {
-	asm.mu.Lock()
-	
-	if !asm.isRunning {
-		asm.mu.Unlock()
-		return nil
-	}
-
-	// Signal stop
-	close(asm.stopChan)
-	
-	// Cancel any pending debounce timer
-	if asm.debounceTimer != nil {
-		asm.debounceTimer.Stop()
-		asm.debounceTimer = nil
+// isServerEqual compares two ServerConfig instances
+func isServerEqual(a, b ServerConfig) bool {
+	// Basic comparison - can be enhanced
+	if a.Transport != b.Transport || a.Command != b.Command || a.URL != b.URL {
+		return false
 	}
 	
-	// Close watcher before unlocking to ensure it's closed before goroutine exits
-	if asm.watcher != nil {
-		asm.watcher.Close()
+	// Compare args
+	if len(a.Args) != len(b.Args) {
+		return false
+	}
+	for i := range a.Args {
+		if a.Args[i] != b.Args[i] {
+			return false
+		}
 	}
 	
-	// Mark as not running before unlocking so performSync will exit early
-	asm.isRunning = false
-	asm.mu.Unlock()
-	
-	// Wait for goroutine to finish
-	asm.wg.Wait()
-	
-	// Now safe to nil the watcher
-	asm.mu.Lock()
-	asm.watcher = nil
-	asm.mu.Unlock()
-
-	// Emit event
-	asm.engine.eventBus.emit(EventAutoSyncStopped, ConfigChange{
-		Type:      "autosync-stopped",
-		Timestamp: time.Now(),
-		Source:    "autosync",
-	})
-
-	return nil
-}
-
-// GetStatus returns the current auto-sync status
-func (asm *autoSyncManager) GetStatus() (*AutoSyncStatus, error) {
-	asm.mu.Lock()
-	defer asm.mu.Unlock()
-
-	status := &AutoSyncStatus{
-		Enabled:       asm.config.Enabled,
-		Running:       asm.isRunning,
-		LastSync:      asm.lastSync,
-		WatchInterval: asm.config.WatchInterval,
+	// Compare env vars
+	if len(a.Env) != len(b.Env) {
+		return false
 	}
-
-	// Calculate next sync time if running
-	if asm.isRunning && !asm.lastSync.IsZero() {
-		status.NextSync = asm.lastSync.Add(asm.config.WatchInterval)
-	}
-
-	return status, nil
-}
-
-// watchLoop is the main watch loop
-func (asm *autoSyncManager) watchLoop() {
-	// Default to 1 second if not specified
-	interval := asm.config.WatchInterval
-	if interval <= 0 {
-		interval = 1 * time.Second
+	for k, v := range a.Env {
+		if bv, ok := b.Env[k]; !ok || v != bv {
+			return false
+		}
 	}
 	
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	// Ensure watcher is initialized
-	if asm.watcher == nil || asm.watcher.watcher == nil {
-		asm.engine.eventBus.emit(EventError, fmt.Errorf("file watcher not initialized"))
-		return
+	// Compare headers
+	if len(a.Headers) != len(b.Headers) {
+		return false
+	}
+	for k, v := range a.Headers {
+		if bv, ok := b.Headers[k]; !ok || v != bv {
+			return false
+		}
 	}
 	
-	// Get references to channels while holding the lock
-	// This prevents nil pointer access if Stop() is called concurrently
-	eventsChan := asm.watcher.watcher.Events
-	errorsChan := asm.watcher.watcher.Errors
-
-	for {
-		select {
-		case <-asm.stopChan:
-			return
-
-		case event, ok := <-eventsChan:
-			if !ok {
-				return
-			}
-
-			// Filter out unwanted events
-			if asm.shouldIgnoreEvent(event) {
-				continue
-			}
-
-			// Emit file changed event
-			asm.engine.eventBus.emit(EventFileChanged, FileChange{
-				Path:      event.Name,
-				Type:      asm.getChangeType(event),
-				Timestamp: time.Now(),
-			})
-
-			// Debounce the sync
-			asm.debouncedSync()
-
-		case err, ok := <-errorsChan:
-			if !ok {
-				return
-			}
-			asm.engine.eventBus.emit(EventError, err)
-
-		case <-ticker.C:
-			// Periodic sync check (in case file events were missed)
-			if asm.config.Enabled {
-				asm.performSync()
-			}
-		}
-	}
+	return true
 }
 
-// shouldIgnoreEvent checks if a file event should be ignored
-func (asm *autoSyncManager) shouldIgnoreEvent(event fsnotify.Event) bool {
-	// Ignore chmod events unless it's also a write
-	if event.Op == fsnotify.Chmod {
-		return true
-	}
-
-	// Check ignore patterns
-	for _, pattern := range asm.config.IgnorePatterns {
-		matched, err := filepath.Match(pattern, filepath.Base(event.Name))
-		if err == nil && matched {
-			return true
-		}
-	}
-
-	// Ignore temporary files
-	if strings.HasSuffix(event.Name, "~") || strings.HasPrefix(filepath.Base(event.Name), ".") {
-		return true
-	}
-
-	return false
-}
-
-// getChangeType converts fsnotify operation to change type
-func (asm *autoSyncManager) getChangeType(event fsnotify.Event) string {
-	switch {
-	case event.Op&fsnotify.Create == fsnotify.Create:
-		return "create"
-	case event.Op&fsnotify.Write == fsnotify.Write:
-		return "modify"
-	case event.Op&fsnotify.Remove == fsnotify.Remove:
-		return "delete"
-	case event.Op&fsnotify.Rename == fsnotify.Rename:
-		return "rename"
-	default:
-		return "unknown"
-	}
-}
-
-// debouncedSync debounces sync operations
-func (asm *autoSyncManager) debouncedSync() {
-	asm.mu.Lock()
-	defer asm.mu.Unlock()
-
-	// Cancel existing timer
-	if asm.debounceTimer != nil {
-		asm.debounceTimer.Stop()
-	}
-
-	// Create new timer
-	asm.debounceTimer = time.AfterFunc(asm.config.DebounceDelay, func() {
-		asm.performSync()
-	})
-}
-
-// performSync performs the actual synchronization
-func (asm *autoSyncManager) performSync() {
-	asm.mu.Lock()
-	if !asm.isRunning || !asm.config.Enabled {
-		asm.mu.Unlock()
-		return
-	}
-	asm.mu.Unlock()
-
-	// Reload config first to get latest changes
-	if asm.engine.configPath != "" {
-		if err := asm.engine.LoadConfig(asm.engine.configPath); err != nil {
-			asm.engine.eventBus.emit(EventError, fmt.Errorf("failed to reload config: %w", err))
-			return
-		}
-	}
-
-	// Create sync options
-	options := SyncOptions{
-		DryRun:       false,
-		CreateBackup: true,
-		Verbose:      false,
-	}
-
-	// Get destinations to sync to
-	destinations := asm.getDestinationsToSync()
-
-	// Perform sync to each destination
-	ctx := context.Background()
-	for _, destName := range destinations {
-		dest, err := asm.engine.GetDestination(destName)
-		if err != nil {
-			asm.engine.eventBus.emit(EventError, fmt.Errorf("failed to get destination %s: %w", destName, err))
-			continue
-		}
-
-		result, err := asm.engine.SyncTo(ctx, dest, options)
-		if err != nil {
-			asm.engine.eventBus.emit(EventSyncFailed, *result)
-		} else {
-			asm.engine.eventBus.emit(EventSyncCompleted, *result)
-		}
-	}
-
-	// Update last sync time
-	asm.mu.Lock()
-	asm.lastSync = time.Now()
-	asm.mu.Unlock()
-}
-
-// getDestinationsToSync returns the list of destinations to sync to
-func (asm *autoSyncManager) getDestinationsToSync() []string {
-	var destinations []string
-
-	// Use configured destinations if specified
-	if len(asm.config.TargetWhitelist) > 0 {
-		destinations = asm.config.TargetWhitelist
-	} else {
-		// Otherwise sync to all registered destinations
-		for name := range asm.engine.destinations {
-			destinations = append(destinations, name)
-		}
-	}
-
-	// Apply blacklist filter
-	if len(asm.config.TargetBlacklist) > 0 {
-		filtered := []string{}
-		blacklist := make(map[string]bool)
-		for _, bl := range asm.config.TargetBlacklist {
-			blacklist[bl] = true
-		}
-
-		for _, dest := range destinations {
-			if !blacklist[dest] {
-				filtered = append(filtered, dest)
-			}
-		}
-		destinations = filtered
-	}
-
-	return destinations
-}

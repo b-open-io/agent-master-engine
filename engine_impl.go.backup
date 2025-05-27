@@ -1,0 +1,1370 @@
+package engine
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+)
+
+// engineImpl is the concrete implementation of Engine interface
+type engineImpl struct {
+	storage      Storage
+	config       *Config
+	configPath   string
+	destinations map[string]Destination
+	autoSync     *autoSyncManager
+	syncManager  *SyncManager
+	eventBus     *eventBus
+	validator    ServerValidator
+	sanitizer    NameSanitizer
+	mu           sync.RWMutex
+}
+
+// NewEngine creates a new engine instance
+func NewEngine(opts ...Option) (Engine, error) {
+	e := &engineImpl{
+		destinations: make(map[string]Destination),
+		eventBus:     newEventBus(),
+	}
+
+	// Apply options
+	cfg := &engineConfig{
+		storagePath: "~/.agent-master",
+	}
+
+	for _, opt := range opts {
+		if opt != nil {
+			if err := opt(cfg); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Initialize storage
+	if cfg.storage != nil {
+		e.storage = cfg.storage
+	} else {
+		storage, err := NewFileStorage(cfg.storagePath)
+		if err != nil {
+			return nil, err
+		}
+		e.storage = storage
+	}
+
+	// Claude adapter is now optional and should be set explicitly if needed
+	// e.SetClaudeAdapter(adapter)
+
+	// Initialize sync manager
+	e.syncManager = NewSyncManager(e)
+
+	// Initialize auto-sync manager
+	e.autoSync = newAutoSyncManager(e)
+
+	// Initialize config
+	e.config = &Config{
+		Version: "1.0.2",
+		Servers: make(map[string]ServerWithMetadata),
+		Settings: Settings{
+			AutoSync: AutoSyncSettings{
+				Enabled:       false,
+				WatchInterval: 1 * time.Second,
+				DebounceDelay: 500 * time.Millisecond,
+			},
+			Backup: BackupSettings{
+				Enabled:    true,
+				Location:   "~/.agent-master/backups",
+				MaxBackups: 10,
+			},
+			ConflictResolution: ConflictSettings{
+				Mode: "interactive",
+			},
+			ProjectScanning: ProjectScanSettings{
+				Enabled:      true,
+				ScanPaths:    []string{"~/code"},
+				ExcludePaths: []string{"node_modules", ".git", "dist"},
+				MaxDepth:     5,
+			},
+			Validation: ValidationSettings{
+				Enabled:             true,
+				ValidateBeforeWrite: true,
+				ValidateAfterWrite:  true,
+				StrictMode:          false,
+			},
+		},
+		Targets: make(map[string]TargetConfig), // Legacy field
+	}
+
+	return e, nil
+}
+
+// Configuration Management
+func (e *engineImpl) LoadConfig(path string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.configPath = path
+
+	// Try to load from storage
+	if err := LoadJSON(e.storage, Keys.Config(), &e.config); err != nil {
+		// If not found, that's OK - we'll use defaults
+		if !isNotFoundError(err) {
+			return fmt.Errorf("failed to load config: %w", err)
+		}
+	}
+
+	// Emit event
+	e.eventBus.emit(EventConfigLoaded, ConfigChange{
+		Type:      "config-loaded",
+		Timestamp: time.Now(),
+		Source:    "storage",
+	})
+
+	return nil
+}
+
+func (e *engineImpl) SaveConfig() error {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	return e.saveConfigNoLock()
+}
+
+// saveConfigNoLock saves config without acquiring lock (caller must hold lock)
+func (e *engineImpl) saveConfigNoLock() error {
+	if err := SaveJSON(e.storage, Keys.Config(), e.config); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	e.eventBus.emit(EventConfigSaved, ConfigChange{
+		Type:      "config-saved",
+		Timestamp: time.Now(),
+		Source:    "user",
+	})
+
+	return nil
+}
+
+func (e *engineImpl) GetConfig() (*Config, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	// Return copy to prevent external modification
+	configCopy := *e.config
+	return &configCopy, nil
+}
+
+func (e *engineImpl) SetConfigPath(path string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.configPath = path
+}
+
+func (e *engineImpl) SetConfig(config *Config) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if config == nil {
+		return fmt.Errorf("config cannot be nil")
+	}
+
+	e.config = config
+	err := e.saveConfigNoLock()
+	
+	// Trigger auto-sync if enabled
+	if err == nil && e.autoSync != nil && e.autoSync.isRunning {
+		go e.autoSync.debouncedSync()
+	}
+	
+	return err
+}
+
+// ValidateServer validates a server configuration
+func ValidateServer(name string, config ServerConfig) error {
+	// Basic validation
+	if name == "" {
+		return fmt.Errorf("server name cannot be empty")
+	}
+	if config.Transport != "stdio" && config.Transport != "sse" {
+		return fmt.Errorf("invalid transport: %s", config.Transport)
+	}
+	if config.Transport == "stdio" && config.Command == "" {
+		return fmt.Errorf("stdio transport requires command")
+	}
+	if config.Transport == "sse" && config.URL == "" {
+		return fmt.Errorf("sse transport requires URL")
+	}
+	return nil
+}
+
+// SanitizeServerName sanitizes a server name
+func SanitizeServerName(name string) string {
+	// Basic sanitization - remove spaces and special characters
+	sanitized := strings.TrimSpace(name)
+	// Replace spaces with hyphens
+	sanitized = strings.ReplaceAll(sanitized, " ", "-")
+	// Remove any non-alphanumeric characters except hyphens and underscores
+	// This is a simple implementation - can be enhanced with regex
+	return sanitized
+}
+
+// Server Management
+func (e *engineImpl) AddServer(name string, server ServerConfig) error {
+	// Validate server
+	if err := ValidateServer(name, server); err != nil {
+		return err
+	}
+
+	// Optional: Test server if validator supports it
+	// TODO: Add server testing capability to validator interface
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Check for duplicates
+	if _, exists := e.config.Servers[name]; exists {
+		return fmt.Errorf("server %q already exists", name)
+	}
+
+	// Add with default metadata
+	e.config.Servers[name] = ServerWithMetadata{
+		ServerConfig: server,
+		Internal: InternalMetadata{
+			Enabled:      true,
+			SyncTargets:  []string{"all"},
+			Source:       "user",
+			LastModified: time.Now(),
+		},
+	}
+
+	// Save config (without lock since we already hold it)
+	if err := e.saveConfigNoLock(); err != nil {
+		return err
+	}
+
+	e.eventBus.emit(EventServerAdded, ConfigChange{
+		Type:      "server-added",
+		Name:      name,
+		Timestamp: time.Now(),
+		Source:    "user",
+	})
+
+	return nil
+}
+
+func (e *engineImpl) UpdateServer(name string, server ServerConfig) error {
+	// Validate server
+	if err := ValidateServer(name, server); err != nil {
+		return err
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	existing, exists := e.config.Servers[name]
+	if !exists {
+		return fmt.Errorf("server %q not found", name)
+	}
+
+	// Update config, preserve metadata
+	existing.ServerConfig = server
+	existing.Internal.LastModified = time.Now()
+	e.config.Servers[name] = existing
+
+	// Save config (without lock since we already hold it)
+	if err := e.saveConfigNoLock(); err != nil {
+		return err
+	}
+
+	e.eventBus.emit(EventServerUpdated, ConfigChange{
+		Type:      "server-updated",
+		Name:      name,
+		Timestamp: time.Now(),
+		Source:    "user",
+	})
+
+	return nil
+}
+
+func (e *engineImpl) RemoveServer(name string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if _, exists := e.config.Servers[name]; !exists {
+		return fmt.Errorf("server %q not found", name)
+	}
+
+	delete(e.config.Servers, name)
+
+	// Save config (without lock since we already hold it)
+	if err := e.saveConfigNoLock(); err != nil {
+		return err
+	}
+
+	e.eventBus.emit(EventServerRemoved, ConfigChange{
+		Type:      "server-removed",
+		Name:      name,
+		Timestamp: time.Now(),
+		Source:    "user",
+	})
+
+	return nil
+}
+
+func (e *engineImpl) GetServer(name string) (*ServerWithMetadata, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	server, exists := e.config.Servers[name]
+	if !exists {
+		return nil, fmt.Errorf("server %q not found", name)
+	}
+
+	// Return copy
+	serverCopy := server
+	return &serverCopy, nil
+}
+
+func (e *engineImpl) ListServers(filter ServerFilter) ([]*ServerInfo, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	var servers []*ServerInfo
+
+	for name, server := range e.config.Servers {
+		// Apply filters
+		if filter.Enabled != nil && server.Internal.Enabled != *filter.Enabled {
+			continue
+		}
+
+		if filter.Transport != "" && server.Transport != filter.Transport {
+			continue
+		}
+
+		if filter.Source != "" && server.Internal.Source != filter.Source {
+			continue
+		}
+
+		// TODO: Implement other filters
+
+		info := &ServerInfo{
+			Name:            name,
+			Transport:       server.Transport,
+			Enabled:         server.Internal.Enabled,
+			SyncTargetCount: len(server.Internal.SyncTargets),
+			LastModified:    server.Internal.LastModified,
+			HasErrors:       server.Internal.ErrorCount > 0,
+		}
+
+		servers = append(servers, info)
+	}
+
+	return servers, nil
+}
+
+func (e *engineImpl) ValidateServer(name string, server ServerConfig) error {
+	return ValidateServer(name, server)
+}
+
+func (e *engineImpl) SanitizeServerName(name string) string {
+	return SanitizeServerName(name)
+}
+
+func (e *engineImpl) SanitizeName(name string) string {
+	// Use sanitizer if set
+	if e.sanitizer != nil {
+		return e.sanitizer.Sanitize(name)
+	}
+	// Fall back to basic sanitization
+	return SanitizeServerName(name)
+}
+
+func (e *engineImpl) SetSanitizer(sanitizer NameSanitizer) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.sanitizer = sanitizer
+}
+
+func (e *engineImpl) SetValidator(validator ServerValidator) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.validator = validator
+}
+
+// Target Management (Legacy - use Destinations instead)
+func (e *engineImpl) RegisterTarget(target TargetConfig) error {
+	// Legacy method - targets are now handled as destinations
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.config.Targets == nil {
+		e.config.Targets = make(map[string]TargetConfig)
+	}
+	e.config.Targets[target.Name] = target
+
+	return e.saveConfigNoLock()
+}
+
+func (e *engineImpl) RemoveTarget(name string) error {
+	// Legacy method - targets are now handled as destinations
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.config.Targets == nil {
+		return fmt.Errorf("target %q not found", name)
+	}
+
+	if _, exists := e.config.Targets[name]; !exists {
+		return fmt.Errorf("target %q not found", name)
+	}
+
+	delete(e.config.Targets, name)
+
+	return e.saveConfigNoLock()
+}
+
+func (e *engineImpl) GetTarget(name string) (*TargetConfig, error) {
+	// Legacy method
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	if e.config.Targets == nil {
+		return nil, fmt.Errorf("target %q not found", name)
+	}
+
+	target, exists := e.config.Targets[name]
+	if !exists {
+		return nil, fmt.Errorf("target %q not found", name)
+	}
+
+	targetCopy := target
+	return &targetCopy, nil
+}
+
+func (e *engineImpl) ListTargets() ([]*TargetInfo, error) {
+	// Legacy method
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	var targets []*TargetInfo
+
+	if e.config.Targets != nil {
+		for name, target := range e.config.Targets {
+			info := &TargetInfo{
+				Name:       name,
+				Type:       target.Type,
+				Enabled:    target.Enabled,
+				ConfigPath: target.ConfigPath,
+			}
+
+			// Count servers for this target
+			count := 0
+			for _, server := range e.config.Servers {
+				if server.Internal.Enabled && e.shouldSyncToTarget(server, name) {
+					count++
+				}
+			}
+			info.ServerCount = count
+
+			targets = append(targets, info)
+		}
+	}
+
+	return targets, nil
+}
+
+// Helper methods
+// NOTE: Default destinations are now handled by the presets package
+// Use presets.LoadPreset("claude") instead of hardcoding platform specifics
+
+func (e *engineImpl) shouldSyncToTarget(server ServerWithMetadata, target string) bool {
+	// Check exclusions first
+	for _, excluded := range server.Internal.ExcludeFromTargets {
+		if excluded == target {
+			return false
+		}
+	}
+
+	// Check inclusions
+	for _, included := range server.Internal.SyncTargets {
+		if included == "all" || included == target {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Helper functions
+func isNotFoundError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "not found")
+}
+
+// cleanupOldBackups removes old backups keeping only the most recent maxBackups
+func (e *engineImpl) cleanupOldBackups(maxBackups int) error {
+	backups, err := e.ListBackups()
+	if err != nil {
+		return err
+	}
+
+	// If we have more backups than allowed
+	if len(backups) > maxBackups {
+		// Backups are already sorted newest first
+		toDelete := backups[maxBackups:]
+		
+		for _, backup := range toDelete {
+			// Delete backup data
+			backupKey := fmt.Sprintf("backups/%s", backup.ID)
+			e.storage.Delete(backupKey)
+			
+			// Delete metadata
+			metaKey := fmt.Sprintf("backup-meta/%s", backup.ID)
+			e.storage.Delete(metaKey)
+		}
+	}
+	
+	return nil
+}
+
+// isServerEqual compares two ServerConfig instances
+func isServerEqual(a, b ServerConfig) bool {
+	// Basic comparison - can be enhanced
+	if a.Transport != b.Transport || a.Command != b.Command || a.URL != b.URL {
+		return false
+	}
+	
+	// Compare args
+	if len(a.Args) != len(b.Args) {
+		return false
+	}
+	for i := range a.Args {
+		if a.Args[i] != b.Args[i] {
+			return false
+		}
+	}
+	
+	// Compare env vars
+	if len(a.Env) != len(b.Env) {
+		return false
+	}
+	for k, v := range a.Env {
+		if bv, ok := b.Env[k]; !ok || v != bv {
+			return false
+		}
+	}
+	
+	// Compare headers
+	if len(a.Headers) != len(b.Headers) {
+		return false
+	}
+	for k, v := range a.Headers {
+		if bv, ok := b.Headers[k]; !ok || v != bv {
+			return false
+		}
+	}
+	
+	return true
+}
+
+// Option configuration
+type Option func(*engineConfig) error
+
+type engineConfig struct {
+	storage           Storage
+	storagePath       string
+	useDefaultTargets bool
+}
+
+func WithStorage(storage Storage) Option {
+	return func(cfg *engineConfig) error {
+		cfg.storage = storage
+		return nil
+	}
+}
+
+func WithFileStorage(path string) Option {
+	return func(cfg *engineConfig) error {
+		cfg.storagePath = path
+		return nil
+	}
+}
+
+func WithMemoryStorage() Option {
+	return func(cfg *engineConfig) error {
+		cfg.storage = NewMemoryStorage()
+		return nil
+	}
+}
+
+func WithDefaultTargets() Option {
+	return func(cfg *engineConfig) error {
+		cfg.useDefaultTargets = true
+		return nil
+	}
+}
+
+// Sync operations - delegate to sync manager
+func (e *engineImpl) SyncToTarget(ctx context.Context, targetName string, options SyncOptions) (*SyncResult, error) {
+	result, err := e.syncManager.SyncToTarget(ctx, targetName, options)
+	if err == nil && result.Success {
+		e.eventBus.emit(EventSyncCompleted, *result)
+	} else if err != nil {
+		e.eventBus.emit(EventSyncFailed, *result)
+	}
+	return result, err
+}
+
+func (e *engineImpl) SyncTo(ctx context.Context, dest Destination, options SyncOptions) (*SyncResult, error) {
+	start := time.Now()
+	result := &SyncResult{
+		Destination:    dest.GetID(),
+		Success:        false,
+		Changes:        []Change{},
+		Errors:         []SyncError{},
+		Duration:       0,
+		Timestamp:      start,
+		ServersAdded:   0,
+		ServersUpdated: 0,
+		ServersRemoved: 0,
+	}
+
+	e.mu.RLock()
+	config := e.config
+	e.mu.RUnlock()
+
+	// Transform config for destination
+	transformedConfig, err := dest.Transform(config)
+	if err != nil {
+		result.Errors = append(result.Errors, SyncError{
+			Error:       fmt.Sprintf("transform failed: %v", err),
+			Recoverable: false,
+		})
+		return result, fmt.Errorf("failed to transform config: %w", err)
+	}
+
+	// Convert to JSON for writing
+	data, err := json.Marshal(transformedConfig)
+	if err != nil {
+		result.Errors = append(result.Errors, SyncError{
+			Error:       fmt.Sprintf("marshal failed: %v", err),
+			Recoverable: false,
+		})
+		return result, fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	// Create backup if requested and destination supports it
+	if options.CreateBackup && dest.SupportsBackup() && dest.Exists() && !options.DryRun {
+		backupPath, err := dest.Backup()
+		if err != nil {
+			result.Errors = append(result.Errors, SyncError{
+				Error:       fmt.Sprintf("backup failed: %v", err),
+				Recoverable: true,
+			})
+		} else {
+			result.BackupPath = backupPath
+		}
+	}
+
+	// Calculate changes by comparing with existing
+	if dest.Exists() {
+		existingData, err := dest.Read()
+		if err == nil {
+			var existing interface{}
+			json.Unmarshal(existingData, &existing)
+			result.Changes = e.calculateChanges(existing, transformedConfig)
+		}
+	} else {
+		// New destination - all servers are added
+		result.ServersAdded = len(config.Servers)
+		for name := range config.Servers {
+			result.Changes = append(result.Changes, Change{
+				Type:   "add",
+				Server: name,
+				After:  config.Servers[name].ServerConfig,
+			})
+		}
+	}
+
+	// Write if not dry run
+	if !options.DryRun {
+		if err := dest.Write(data); err != nil {
+			result.Errors = append(result.Errors, SyncError{
+				Error:       fmt.Sprintf("write failed: %v", err),
+				Recoverable: false,
+			})
+			return result, fmt.Errorf("failed to write to destination: %w", err)
+		}
+	}
+
+	result.Success = true
+	result.Duration = time.Since(start)
+
+	// Emit sync complete event
+	e.eventBus.emit(EventSyncCompleted, *result)
+
+	return result, nil
+}
+
+func (e *engineImpl) SyncToMultiple(ctx context.Context, dests []Destination, options SyncOptions) (*MultiSyncResult, error) {
+	if len(dests) == 0 {
+		return nil, fmt.Errorf("no destinations provided")
+	}
+
+	result := &MultiSyncResult{
+		Results:       make([]SyncResult, 0, len(dests)),
+		TotalDuration: 0,
+		SuccessCount:  0,
+		FailureCount:  0,
+	}
+
+	start := time.Now()
+	
+	// Use a wait group to sync concurrently
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	
+	for _, dest := range dests {
+		wg.Add(1)
+		go func(d Destination) {
+			defer wg.Done()
+			
+			syncResult, err := e.SyncTo(ctx, d, options)
+			
+			mu.Lock()
+			defer mu.Unlock()
+			
+			if err != nil {
+				// Still add the result even if there was an error
+				if syncResult == nil {
+					syncResult = &SyncResult{
+						Destination: d.GetID(),
+						Success:     false,
+						Errors: []SyncError{{
+							Error:       err.Error(),
+							Recoverable: false,
+						}},
+						Timestamp: time.Now(),
+					}
+				}
+				result.FailureCount++
+			} else if syncResult.Success {
+				result.SuccessCount++
+			} else {
+				result.FailureCount++
+			}
+			
+			result.Results = append(result.Results, *syncResult)
+		}(dest)
+	}
+	
+	wg.Wait()
+	result.TotalDuration = time.Since(start)
+	
+	return result, nil
+}
+
+func (e *engineImpl) SyncToAllTargets(ctx context.Context, options SyncOptions) (*MultiSyncResult, error) {
+	return e.syncManager.SyncToAllTargets(ctx, options)
+}
+
+func (e *engineImpl) GenerateTargetConfig(targetName string) (interface{}, error) {
+	target, err := e.GetTarget(targetName)
+	if err != nil {
+		return nil, err
+	}
+	return e.syncManager.generateTargetConfig(targetName, target)
+}
+
+func (e *engineImpl) PreviewSync(dest Destination) (*SyncPreview, error) {
+	e.mu.RLock()
+	currentConfig := e.config
+	e.mu.RUnlock()
+
+	preview := &SyncPreview{
+		Destination:    dest.GetID(),
+		Changes:        []Change{},
+		EstimatedTime:  100 * time.Millisecond, // Rough estimate
+		RequiresBackup: false,
+	}
+
+	// Get the existing config at destination
+	var existingConfig *Config
+	if dest.Exists() {
+		data, err := dest.Read()
+		if err == nil && len(data) > 0 {
+			// Try to parse existing config
+			existingConfig, _ = ParseMCPConfig(data)
+		}
+	}
+
+	// If destination exists and has data, we might want backup
+	if existingConfig != nil && len(existingConfig.Servers) > 0 {
+		preview.RequiresBackup = true
+	}
+
+	// Compare configs to determine changes
+	if existingConfig == nil {
+		// Everything is new
+		for name, server := range currentConfig.Servers {
+			if server.Internal.Enabled {
+				preview.Changes = append(preview.Changes, Change{
+					Type:   "add",
+					Server: name,
+					Before: nil,
+					After:  server.ServerConfig,
+				})
+			}
+		}
+	} else {
+		// Compare existing vs new
+		// Check for updates and removals
+		for name, existingServer := range existingConfig.Servers {
+			if newServer, exists := currentConfig.Servers[name]; exists {
+				if newServer.Internal.Enabled {
+					// Check if changed (simple comparison for now)
+					if !isServerEqual(existingServer.ServerConfig, newServer.ServerConfig) {
+						preview.Changes = append(preview.Changes, Change{
+							Type:   "update",
+							Server: name,
+							Before: existingServer.ServerConfig,
+							After:  newServer.ServerConfig,
+						})
+					}
+				} else {
+					// Disabled, so remove
+					preview.Changes = append(preview.Changes, Change{
+						Type:   "remove",
+						Server: name,
+						Before: existingServer.ServerConfig,
+						After:  nil,
+					})
+				}
+			} else {
+				// Server removed
+				preview.Changes = append(preview.Changes, Change{
+					Type:   "remove",
+					Server: name,
+					Before: existingServer.ServerConfig,
+					After:  nil,
+				})
+			}
+		}
+
+		// Check for new servers
+		for name, server := range currentConfig.Servers {
+			if server.Internal.Enabled {
+				if _, exists := existingConfig.Servers[name]; !exists {
+					preview.Changes = append(preview.Changes, Change{
+						Type:   "add",
+						Server: name,
+						Before: nil,
+						After:  server.ServerConfig,
+					})
+				}
+			}
+		}
+	}
+
+	// Estimate time based on number of changes
+	preview.EstimatedTime = time.Duration(len(preview.Changes)*50) * time.Millisecond
+
+	return preview, nil
+}
+
+func (e *engineImpl) ScanForProjects(paths []string, detector ProjectDetector) ([]*ProjectConfig, error) {
+	// TODO: Implement
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (e *engineImpl) RegisterProject(path string, config ProjectConfig) error {
+	// TODO: Implement
+	return fmt.Errorf("not implemented")
+}
+
+func (e *engineImpl) GetProjectConfig(path string) (*ProjectConfig, error) {
+	// TODO: Implement
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (e *engineImpl) ListProjects() ([]*ProjectInfo, error) {
+	// TODO: Implement
+	return nil, fmt.Errorf("not implemented")
+}
+
+
+func (e *engineImpl) ImportFromTarget(targetName string, options ImportOptions) (*ImportResult, error) {
+	// TODO: Implement
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (e *engineImpl) ExportToFile(path string, format ExportFormat) error {
+	// Export to bytes first
+	data, err := e.Export(format)
+	if err != nil {
+		return fmt.Errorf("failed to export: %w", err)
+	}
+
+	// Expand path
+	expandedPath := expandPath(path)
+
+	// Create directory if needed
+	dir := filepath.Dir(expandedPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// Write to file
+	if err := os.WriteFile(expandedPath, data, 0644); err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	// Emit event
+	e.eventBus.emit(EventConfigSaved, ConfigChange{
+		Type:      "config-exported",
+		Timestamp: time.Now(),
+		Source:    "export",
+		Details:   map[string]interface{}{"path": expandedPath, "format": string(format)},
+	})
+
+	return nil
+}
+
+func (e *engineImpl) MergeConfigs(configs ...*Config) (*Config, error) {
+	if len(configs) == 0 {
+		return nil, fmt.Errorf("no configs provided to merge")
+	}
+
+	// Start with an empty merged config
+	merged := &Config{
+		Version:  DefaultConfigVersion,
+		Servers:  make(map[string]ServerWithMetadata),
+		Settings: Settings{},
+		Metadata: make(map[string]interface{}),
+	}
+
+	// Use the first non-nil config as base for settings
+	for _, cfg := range configs {
+		if cfg != nil && cfg.Version != "" {
+			merged.Version = cfg.Version
+			merged.Settings = cfg.Settings
+			break
+		}
+	}
+
+	// Merge servers from all configs
+	serverSources := make(map[string]string) // Track which config each server came from
+	
+	for idx, cfg := range configs {
+		if cfg == nil {
+			continue
+		}
+
+		sourceName := fmt.Sprintf("config-%d", idx+1)
+		
+		// Merge servers
+		for name, server := range cfg.Servers {
+			if _, exists := merged.Servers[name]; exists {
+				// Server exists - decide how to handle conflict
+				// Option 1: Last one wins (current implementation)
+				// Option 2: Could compare timestamps and keep newer
+				// Option 3: Could merge server properties
+				
+				// For now: last one wins, but track the conflict
+				if merged.Metadata["conflicts"] == nil {
+					merged.Metadata["conflicts"] = make([]map[string]interface{}, 0)
+				}
+				
+				conflicts := merged.Metadata["conflicts"].([]map[string]interface{})
+				conflicts = append(conflicts, map[string]interface{}{
+					"server":       name,
+					"from":         serverSources[name],
+					"overriddenBy": sourceName,
+				})
+				merged.Metadata["conflicts"] = conflicts
+			}
+			
+			// Copy the server
+			merged.Servers[name] = server
+			serverSources[name] = sourceName
+		}
+
+		// Merge metadata
+		for k, v := range cfg.Metadata {
+			if k != "conflicts" { // Don't overwrite our conflict tracking
+				merged.Metadata[k] = v
+			}
+		}
+	}
+
+	// Add merge info
+	merged.Metadata["mergedAt"] = time.Now()
+	merged.Metadata["sourceCount"] = len(configs)
+	merged.Metadata["totalServers"] = len(merged.Servers)
+
+	return merged, nil
+}
+
+func (e *engineImpl) CreateBackup(description string) (*BackupInfo, error) {
+	e.mu.RLock()
+	config := e.config
+	e.mu.RUnlock()
+
+	// Generate backup ID with timestamp and nanoseconds for uniqueness
+	timestamp := time.Now()
+	backupID := fmt.Sprintf("backup-%s-%d", timestamp.Format("20060102-150405"), timestamp.UnixNano())
+	
+	// Determine backup path
+	backupPath := filepath.Join("backups", backupID+".json")
+	
+	// Marshal config
+	data, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal config: %w", err)
+	}
+
+	// Create backup info
+	info := &BackupInfo{
+		ID:          backupID,
+		Path:        backupPath,
+		Timestamp:   timestamp,
+		Size:        int64(len(data)),
+		Type:        "manual",
+		Description: description,
+	}
+
+	// Store backup using storage layer
+	backupKey := fmt.Sprintf("backups/%s", backupID)
+	if err := e.storage.Write(backupKey, data); err != nil {
+		return nil, fmt.Errorf("failed to write backup: %w", err)
+	}
+
+	// Store backup metadata
+	metadataKey := fmt.Sprintf("backup-meta/%s", backupID)
+	metaData, _ := json.Marshal(info)
+	if err := e.storage.Write(metadataKey, metaData); err != nil {
+		// Try to clean up the backup
+		e.storage.Delete(backupKey)
+		return nil, fmt.Errorf("failed to write backup metadata: %w", err)
+	}
+
+	// Clean up old backups if needed
+	if e.config.Settings.Backup.MaxBackups > 0 {
+		if err := e.cleanupOldBackups(e.config.Settings.Backup.MaxBackups); err != nil {
+			// Log but don't fail the backup
+			fmt.Printf("Warning: failed to cleanup old backups: %v\n", err)
+		}
+	}
+
+	return info, nil
+}
+
+func (e *engineImpl) ListBackups() ([]*BackupInfo, error) {
+	// List all backup metadata keys
+	metaKeys, err := e.storage.List("backup-meta/")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list backup metadata: %w", err)
+	}
+
+	backups := make([]*BackupInfo, 0, len(metaKeys))
+	
+	for _, key := range metaKeys {
+		// Read metadata
+		data, err := e.storage.Read(key)
+		if err != nil {
+			continue // Skip invalid metadata
+		}
+
+		var info BackupInfo
+		if err := json.Unmarshal(data, &info); err != nil {
+			continue // Skip invalid metadata
+		}
+
+		backups = append(backups, &info)
+	}
+
+	// Sort by timestamp (newest first)
+	sort.Slice(backups, func(i, j int) bool {
+		return backups[i].Timestamp.After(backups[j].Timestamp)
+	})
+
+	return backups, nil
+}
+
+func (e *engineImpl) RestoreBackup(backupID string) error {
+	// Read backup data
+	backupKey := fmt.Sprintf("backups/%s", backupID)
+	data, err := e.storage.Read(backupKey)
+	if err != nil {
+		return fmt.Errorf("failed to read backup: %w", err)
+	}
+
+	// Parse backup config
+	var backupConfig Config
+	if err := json.Unmarshal(data, &backupConfig); err != nil {
+		return fmt.Errorf("failed to parse backup: %w", err)
+	}
+
+	// Create a backup of current config before restoring (safety)
+	if _, err := e.CreateBackup("pre-restore-backup"); err != nil {
+		// Log but don't fail
+		fmt.Printf("Warning: failed to create pre-restore backup: %v\n", err)
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Restore the config
+	e.config = &backupConfig
+
+	// Save to storage
+	if err := e.saveConfigNoLock(); err != nil {
+		return fmt.Errorf("failed to save restored config: %w", err)
+	}
+
+	// Emit event
+	e.eventBus.emit(EventConfigLoaded, ConfigChange{
+		Type:      "config-restored",
+		Timestamp: time.Now(),
+		Source:    "backup",
+		Details:   map[string]interface{}{"backupID": backupID},
+	})
+
+	return nil
+}
+
+func (e *engineImpl) Export(format ExportFormat) ([]byte, error) {
+	e.mu.RLock()
+	config := e.config
+	e.mu.RUnlock()
+
+	// Create export structure with only enabled servers
+	exportConfig := &Config{
+		Version:  config.Version,
+		Servers:  make(map[string]ServerWithMetadata),
+		Settings: config.Settings,
+		Metadata: config.Metadata,
+	}
+
+	// Only export enabled servers
+	for name, server := range config.Servers {
+		if server.Internal.Enabled {
+			exportConfig.Servers[name] = server
+		}
+	}
+
+	switch format {
+	case ExportFormatJSON:
+		data, err := json.MarshalIndent(exportConfig, "", "  ")
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		return data, nil
+		
+	case ExportFormatYAML:
+		// For now, we'll use JSON as YAML requires additional dependency
+		// In production, you'd use gopkg.in/yaml.v3
+		return nil, fmt.Errorf("YAML export not yet implemented")
+		
+	case ExportFormatTOML:
+		// For now, we'll use JSON as TOML requires additional dependency
+		// In production, you'd use github.com/BurntSushi/toml
+		return nil, fmt.Errorf("TOML export not yet implemented")
+		
+	default:
+		return nil, fmt.Errorf("unsupported export format: %s", format)
+	}
+}
+
+func (e *engineImpl) Import(data []byte, format ImportFormat, options ImportOptions) error {
+	// Parse the data using our MCP parser
+	config, err := ParseMCPConfigWithOptions(data, options.SubstituteEnvVars)
+	if err != nil {
+		return fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Handle merge options
+	if options.MergeMode == "replace" {
+		// Replace all servers
+		e.config.Servers = make(map[string]ServerWithMetadata)
+	}
+
+	// Import servers
+	importedCount := 0
+	for name, server := range config.Servers {
+		// Skip if server already exists and not overwriting
+		if _, exists := e.config.Servers[name]; exists && !options.OverwriteExisting {
+			continue
+		}
+
+		// Validate server if validator is set
+		if e.validator != nil {
+			if err := e.validator.ValidateServerConfig(name, server.ServerConfig); err != nil {
+				if options.SkipInvalid {
+					continue
+				}
+				return fmt.Errorf("invalid server %q: %w", name, err)
+			}
+		}
+
+		// Add server with metadata
+		e.config.Servers[name] = server
+		importedCount++
+	}
+
+	// Save configuration
+	if err := e.saveConfigNoLock(); err != nil {
+		return fmt.Errorf("failed to save imported config: %w", err)
+	}
+
+	// Emit event
+	e.eventBus.emit(EventConfigLoaded, ConfigChange{
+		Type:      "config-imported",
+		Timestamp: time.Now(),
+		Source:    "import",
+		Details:   map[string]interface{}{"imported_servers": importedCount},
+	})
+
+	return nil
+}
+
+func (e *engineImpl) OnConfigChange(handler ConfigChangeHandler) func() {
+	return e.eventBus.on(EventConfigLoaded, handler)
+}
+
+func (e *engineImpl) OnSyncComplete(handler SyncCompleteHandler) func() {
+	return e.eventBus.on(EventSyncCompleted, handler)
+}
+
+func (e *engineImpl) OnError(handler ErrorHandler) func() {
+	// TODO: Implement
+	return func() {}
+}
+
+// calculateChanges compares existing and transformed configs to detect changes
+func (e *engineImpl) calculateChanges(existing, transformed interface{}) []Change {
+	changes := []Change{}
+
+	// Extract servers from both configs
+	existingServers := make(map[string]interface{})
+	transformedServers := make(map[string]interface{})
+
+	// Handle different config formats
+	switch ex := existing.(type) {
+	case map[string]interface{}:
+		if servers, ok := ex["mcpServers"].(map[string]interface{}); ok {
+			existingServers = servers
+		}
+	case *Config:
+		for name, server := range ex.Servers {
+			existingServers[name] = server.ServerConfig
+		}
+	}
+
+	switch tr := transformed.(type) {
+	case map[string]interface{}:
+		if servers, ok := tr["mcpServers"].(map[string]interface{}); ok {
+			transformedServers = servers
+		}
+	case *Config:
+		for name, server := range tr.Servers {
+			transformedServers[name] = server.ServerConfig
+		}
+	}
+
+	// Find added servers
+	for name, server := range transformedServers {
+		if _, exists := existingServers[name]; !exists {
+			changes = append(changes, Change{
+				Type:   "add",
+				Server: name,
+				After:  server,
+			})
+		}
+	}
+
+	// Find updated servers
+	for name, transformedServer := range transformedServers {
+		if existingServer, exists := existingServers[name]; exists {
+			// Simple comparison - in real implementation would do deep comparison
+			existingJSON, _ := json.Marshal(existingServer)
+			transformedJSON, _ := json.Marshal(transformedServer)
+			if string(existingJSON) != string(transformedJSON) {
+				changes = append(changes, Change{
+					Type:   "update",
+					Server: name,
+					Before: existingServer,
+					After:  transformedServer,
+				})
+			}
+		}
+	}
+
+	// Find removed servers
+	for name := range existingServers {
+		if _, exists := transformedServers[name]; !exists {
+			changes = append(changes, Change{
+				Type:   "remove",
+				Server: name,
+				Before: existingServers[name],
+			})
+		}
+	}
+
+	return changes
+}
+
+// Destination Management
+func (e *engineImpl) RegisterDestination(name string, dest Destination) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.destinations[name] = dest
+	return nil
+}
+
+func (e *engineImpl) RemoveDestination(name string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if _, exists := e.destinations[name]; !exists {
+		return fmt.Errorf("destination %q not found", name)
+	}
+
+	delete(e.destinations, name)
+	return nil
+}
+
+func (e *engineImpl) GetDestination(name string) (Destination, error) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	dest, exists := e.destinations[name]
+	if !exists {
+		return nil, fmt.Errorf("destination %q not found", name)
+	}
+
+	return dest, nil
+}
+
+func (e *engineImpl) ListDestinations() map[string]Destination {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	// Return copy to prevent external modification
+	result := make(map[string]Destination)
+	for name, dest := range e.destinations {
+		result[name] = dest
+	}
+
+	return result
+}
+

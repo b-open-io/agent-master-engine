@@ -7,12 +7,16 @@ Agent Master Engine is a Go library for managing Model Context Protocol (MCP) se
 ## 🚀 What It Does
 
 - **No tool-specific code**: Works with any system; nothing is hardcoded
+- **Multi-format support**: Parse Claude Desktop, VS Code/GitHub, and flat MCP configurations
+- **Multi-destination sync**: Synchronize to multiple targets concurrently
+- **Preview changes**: See what will be modified before applying
+- **Auto-sync**: Watch for configuration changes and sync automatically
 - **Custom validation**: Define your own rules for server names and settings
 - **Sync anywhere**: Send configurations to any target by implementing the Destination interface
-- **Choose your storage**: Use files, in-memory, or implement your own (Redis, PostgreSQL, etc.)
+- **Choose your storage**: Use files, in-memory, or Redis (more adapters can be added)
 - **Track changes**: Get notified when configurations change or sync operations occur
-- **Group operations**: Apply multiple changes at once, all-or-nothing
-- **Add features easily**: The design makes it straightforward to expand functionality
+- **Variable substitution**: Optional environment variable substitution
+- **Import configurations**: Import from various MCP format files
 
 ---
 
@@ -55,14 +59,73 @@ func main() {
     dest := agent.NewFileDestination("vscode", "~/.vscode/mcp.json", nil)
     engine.RegisterDestination("vscode", dest)
 
+    // Preview changes before syncing
+    preview, err := engine.PreviewSync(dest)
+    if err != nil {
+        log.Fatal(err)
+    }
+    log.Printf("Will make %d changes", len(preview.Changes))
+
+    // Sync to single destination
     ctx := context.Background()
     result, err := engine.SyncTo(ctx, dest, agent.SyncOptions{})
     if err != nil {
         log.Fatal(err)
     }
-
     log.Printf("Sync completed: %d servers synced", result.ServersAdded)
 }
+```
+
+### Multi-Destination Sync
+
+```go
+// Sync to multiple destinations at once
+dest1 := agent.NewFileDestination("vscode", "~/.vscode/mcp.json", nil)
+dest2 := agent.NewFileDestination("cursor", "~/.cursor/mcp.json", nil)
+dest3 := agent.NewFileDestination("claude", "~/Library/Application Support/Claude/mcp.json", nil)
+
+dests := []agent.Destination{dest1, dest2, dest3}
+result, err := engine.SyncToMultiple(ctx, dests, agent.SyncOptions{})
+if err != nil {
+    log.Fatal(err)
+}
+log.Printf("Synced to %d/%d destinations successfully", result.SuccessCount, len(dests))
+```
+
+### Import MCP Configurations
+
+```go
+// Import from various MCP formats
+data, err := os.ReadFile("github-mcp-config.json")
+if err != nil {
+    log.Fatal(err)
+}
+
+err = engine.Import(data, agent.ImportFormat("mcp"), agent.ImportOptions{
+    OverwriteExisting: true,
+    SubstituteEnvVars: true, // Replace ${ENV_VAR} with actual values
+})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
+### Auto-Sync
+
+```go
+// Enable auto-sync to watch for changes
+err = engine.StartAutoSync(agent.AutoSyncConfig{
+    Enabled:       true,
+    WatchInterval: 1 * time.Second,
+    DebounceDelay: 500 * time.Millisecond,
+    Destinations:  []string{"vscode", "cursor"},
+})
+if err != nil {
+    log.Fatal(err)
+}
+
+// Stop auto-sync when done
+defer engine.StopAutoSync()
 ```
 
 ---
