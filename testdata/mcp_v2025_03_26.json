@@ -1,0 +1,59 @@
+{
+  "description": "MCP configuration conforming to 2025-03-26 specification",
+  "version": "2025-03-26",
+  "servers": {
+    "filesystem": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/tmp"],
+      "env": {
+        "DEBUG": "true"
+      },
+      "metadata": {
+        "annotations": {
+          "readOnly": true,
+          "description": "Provides read-only access to the filesystem"
+        }
+      }
+    },
+    "github": {
+      "transport": "stdio",
+      "command": "github-mcp-server",
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "metadata": {
+        "annotations": {
+          "readOnly": false,
+          "destructive": false,
+          "oauth": {
+            "required": true,
+            "scopes": ["repo", "read:user"]
+          }
+        }
+      }
+    },
+    "audio-processor": {
+      "transport": "stdio",
+      "command": "audio-mcp-server",
+      "args": ["--format", "wav"],
+      "metadata": {
+        "capabilities": {
+          "audio": true,
+          "completions": true
+        }
+      }
+    },
+    "batch-processor": {
+      "transport": "stdio", 
+      "command": "batch-server",
+      "metadata": {
+        "capabilities": {
+          "jsonrpc": {
+            "batching": true
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "servers": {
+    "postgres": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-postgres"]
+    },
+    "sqlite": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "path/to/db.sqlite"]
+    },
+    "filesystem": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/tmp"]
+    },
+    "git": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-git"]
+    },
+    "github": {
+      "transport": "stdio",
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "gitlab": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-gitlab"],
+      "env": {
+        "GITLAB_PERSONAL_ACCESS_TOKEN": "${GITLAB_TOKEN}"
+      }
+    },
+    "puppeteer": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-puppeteer"]
+    },
+    "playwright": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-playwright"]
+    },
+    "slack": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-slack"],
+      "env": {
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}"
+      }
+    },
+    "discord": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-discord"],
+      "env": {
+        "DISCORD_BOT_TOKEN": "${DISCORD_BOT_TOKEN}"
+      }
+    }
+  }
+}

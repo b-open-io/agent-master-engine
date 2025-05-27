@@ -69,7 +69,7 @@ func NewEngine(opts ...Option) (Engine, error) {
 
 	// Initialize config
 	e.config = &Config{
-		Version: "1.0.1",
+		Version: "1.0.2",
 		Servers: make(map[string]ServerWithMetadata),
 		Settings: Settings{
 			AutoSync: AutoSyncSettings{
@@ -523,6 +523,13 @@ func WithFileStorage(path string) Option {
 	}
 }
 
+func WithMemoryStorage() Option {
+	return func(cfg *engineConfig) error {
+		cfg.storage = NewMemoryStorage()
+		return nil
+	}
+}
+
 func WithDefaultTargets() Option {
 	return func(cfg *engineConfig) error {
 		cfg.useDefaultTargets = true
@@ -775,8 +782,58 @@ func (e *engineImpl) Export(format ExportFormat) ([]byte, error) {
 }
 
 func (e *engineImpl) Import(data []byte, format ImportFormat, options ImportOptions) error {
-	// TODO: Implement
-	return fmt.Errorf("not implemented")
+	// Parse the data using our MCP parser
+	config, err := ParseMCPConfigWithOptions(data, options.SubstituteEnvVars)
+	if err != nil {
+		return fmt.Errorf("failed to parse config: %w", err)
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	// Handle merge options
+	if options.MergeMode == "replace" {
+		// Replace all servers
+		e.config.Servers = make(map[string]ServerWithMetadata)
+	}
+
+	// Import servers
+	importedCount := 0
+	for name, server := range config.Servers {
+		// Skip if server already exists and not overwriting
+		if _, exists := e.config.Servers[name]; exists && !options.OverwriteExisting {
+			continue
+		}
+
+		// Validate server if validator is set
+		if e.validator != nil {
+			if err := e.validator.ValidateServerConfig(name, server.ServerConfig); err != nil {
+				if options.SkipInvalid {
+					continue
+				}
+				return fmt.Errorf("invalid server %q: %w", name, err)
+			}
+		}
+
+		// Add server with metadata
+		e.config.Servers[name] = server
+		importedCount++
+	}
+
+	// Save configuration
+	if err := e.saveConfigNoLock(); err != nil {
+		return fmt.Errorf("failed to save imported config: %w", err)
+	}
+
+	// Emit event
+	e.eventBus.emit(EventConfigLoaded, ConfigChange{
+		Type:      "config-imported",
+		Timestamp: time.Now(),
+		Source:    "import",
+		Details:   map[string]interface{}{"imported_servers": importedCount},
+	})
+
+	return nil
 }
 
 func (e *engineImpl) OnConfigChange(handler ConfigChangeHandler) func() {

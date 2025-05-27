@@ -1,0 +1,128 @@
+{
+  "description": "Docker-based MCP server configurations found in the wild",
+  "examples": [
+    {
+      "name": "GitHub MCP Server with Docker",
+      "source": "GitHub official MCP server",
+      "config": {
+        "mcp": {
+          "inputs": [
+            {
+              "type": "promptString",
+              "id": "github_token",
+              "description": "GitHub Personal Access Token",
+              "password": true
+            }
+          ],
+          "servers": {
+            "github": {
+              "command": "docker",
+              "args": [
+                "run",
+                "-i",
+                "--rm",
+                "-e",
+                "GITHUB_PERSONAL_ACCESS_TOKEN",
+                "ghcr.io/github/github-mcp-server"
+              ],
+              "env": {
+                "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github_token}"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "PostgreSQL MCP Server",
+      "source": "Database integration pattern",
+      "config": {
+        "mcpServers": {
+          "postgres": {
+            "transport": "stdio",
+            "command": "docker",
+            "args": [
+              "run",
+              "-i",
+              "--rm",
+              "--network", "host",
+              "-e", "DATABASE_URL",
+              "mcp/postgres-server:latest"
+            ],
+            "env": {
+              "DATABASE_URL": "${DATABASE_URL}"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Docker Compose Integration",
+      "source": "Complex multi-container setup",
+      "config": {
+        "mcpServers": {
+          "app-stack": {
+            "transport": "stdio",
+            "command": "docker-compose",
+            "args": [
+              "-f", "mcp-stack.yml",
+              "run",
+              "--rm",
+              "mcp-server"
+            ],
+            "env": {
+              "COMPOSE_PROJECT_NAME": "mcp-${USER}",
+              "API_KEY": "${API_KEY}"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Local Docker Build",
+      "source": "Development pattern",
+      "config": {
+        "mcpServers": {
+          "my-server": {
+            "transport": "stdio",
+            "command": "docker",
+            "args": [
+              "build",
+              "-t", "my-mcp-server",
+              ".",
+              "&&",
+              "docker",
+              "run",
+              "-i",
+              "--rm",
+              "my-mcp-server"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "name": "Docker with Volume Mounts",
+      "source": "File system access pattern",
+      "config": {
+        "mcpServers": {
+          "file-processor": {
+            "transport": "stdio",
+            "command": "docker",
+            "args": [
+              "run",
+              "-i",
+              "--rm",
+              "-v", "${PWD}:/workspace:ro",
+              "-v", "${HOME}/.config:/config:ro",
+              "mcp/file-processor"
+            ],
+            "env": {
+              "WORKSPACE": "/workspace"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

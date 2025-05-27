@@ -140,6 +140,7 @@ type ServerFilter struct {
 type ServerValidator interface {
 	ValidateName(name string) error
 	ValidateConfig(config ServerConfig) error
+	ValidateServerConfig(name string, config ServerConfig) error
 }
 
 // NameSanitizer can sanitize server names

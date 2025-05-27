@@ -1,0 +1,28 @@
+{
+  "description": "MCP configuration conforming to 2024-11-05 specification",
+  "version": "2024-11-05",
+  "servers": {
+    "filesystem": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/tmp"],
+      "env": {
+        "DEBUG": "true"
+      }
+    },
+    "github": {
+      "transport": "stdio",
+      "command": "github-mcp-server",
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      }
+    },
+    "legacy-sse": {
+      "transport": "sse",
+      "url": "http://localhost:8080/sse",
+      "headers": {
+        "Authorization": "Bearer ${API_TOKEN}"
+      }
+    }
+  }
+}

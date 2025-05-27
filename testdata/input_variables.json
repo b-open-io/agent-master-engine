@@ -1,0 +1,94 @@
+{
+  "description": "Test vectors for MCP input variable substitution",
+  "testCases": [
+    {
+      "name": "Environment variable substitution",
+      "input": {
+        "env": {
+          "API_KEY": "${GITHUB_TOKEN}",
+          "PATH": "${HOME}/bin:${PATH}"
+        }
+      },
+      "expected": {
+        "description": "Should substitute from environment variables"
+      }
+    },
+    {
+      "name": "Input variable substitution",
+      "input": {
+        "mcp": {
+          "inputs": [
+            {
+              "type": "promptString",
+              "id": "token",
+              "description": "Access token",
+              "password": true
+            }
+          ],
+          "servers": {
+            "api": {
+              "command": "server",
+              "env": {
+                "TOKEN": "${input:token}"
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "description": "Should substitute from input definitions"
+      }
+    },
+    {
+      "name": "Default values",
+      "input": {
+        "mcp": {
+          "inputs": [
+            {
+              "type": "promptString",
+              "id": "workspace",
+              "description": "Workspace path",
+              "default": "/tmp"
+            }
+          ],
+          "servers": {
+            "fs": {
+              "command": "fs-server",
+              "args": ["${input:workspace}"]
+            }
+          }
+        }
+      },
+      "expected": {
+        "description": "Should use default value if not provided"
+      }
+    },
+    {
+      "name": "Mixed substitution",
+      "input": {
+        "mcp": {
+          "inputs": [
+            {
+              "type": "promptString",
+              "id": "api_key",
+              "description": "API Key"
+            }
+          ],
+          "servers": {
+            "hybrid": {
+              "command": "server",
+              "env": {
+                "API_KEY": "${input:api_key}",
+                "HOME_DIR": "${HOME}",
+                "COMPOSITE": "${input:api_key}-${USER}"
+              }
+            }
+          }
+        }
+      },
+      "expected": {
+        "description": "Should handle both input and env variables"
+      }
+    }
+  ]
+}

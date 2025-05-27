@@ -32,6 +32,7 @@ type ServerConfig struct {
 	Args      []string               `json:"args,omitempty"`
 	Env       map[string]string      `json:"env,omitempty"`
 	URL       string                 `json:"url,omitempty"`
+	Headers   map[string]string      `json:"headers,omitempty"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -138,11 +139,15 @@ type Change struct {
 
 // ImportOptions controls import behavior
 type ImportOptions struct {
-	Overwrite       bool     `json:"overwrite"`
-	MergeStrategy   string   `json:"mergeStrategy"` // "replace", "merge", "skip"
-	ServerWhitelist []string `json:"serverWhitelist,omitempty"`
-	ServerBlacklist []string `json:"serverBlacklist,omitempty"`
-	ImportMetadata  bool     `json:"importMetadata"`
+	Overwrite         bool     `json:"overwrite"`
+	OverwriteExisting bool     `json:"overwriteExisting"` // Alias for Overwrite
+	MergeStrategy     string   `json:"mergeStrategy"`     // "replace", "merge", "skip"
+	MergeMode         string   `json:"mergeMode"`         // Alias for MergeStrategy
+	ServerWhitelist   []string `json:"serverWhitelist,omitempty"`
+	ServerBlacklist   []string `json:"serverBlacklist,omitempty"`
+	ImportMetadata    bool     `json:"importMetadata"`
+	SkipInvalid       bool     `json:"skipInvalid"`
+	SubstituteEnvVars bool     `json:"substituteEnvVars"` // Whether to replace ${ENV_VAR} patterns
 }
 
 // ImportFormat represents supported import formats

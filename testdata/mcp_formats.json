@@ -1,0 +1,111 @@
+{
+  "description": "Test vectors for different MCP configuration formats",
+  "formats": [
+    {
+      "name": "Claude Desktop Format",
+      "description": "Used by Claude Desktop app",
+      "example": {
+        "mcpServers": {
+          "filesystem": {
+            "transport": "stdio",
+            "command": "bunx",
+            "args": ["@modelcontextprotocol/server-filesystem@latest", "/tmp"]
+          }
+        }
+      }
+    },
+    {
+      "name": "GitHub MCP Format",
+      "description": "Nested format with inputs support",
+      "example": {
+        "mcp": {
+          "inputs": [
+            {
+              "type": "promptString",
+              "id": "api_key",
+              "description": "API Key",
+              "password": true
+            },
+            {
+              "type": "promptString",
+              "id": "workspace",
+              "description": "Workspace path",
+              "default": "/home/user"
+            }
+          ],
+          "servers": {
+            "example": {
+              "command": "docker",
+              "args": ["run", "-i", "--rm", "example/mcp-server"],
+              "env": {
+                "API_KEY": "${input:api_key}",
+                "WORKSPACE": "${input:workspace}"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "VS Code MCP Format",
+      "description": "Flat format without wrapper",
+      "example": {
+        "servers": {
+          "memory": {
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-memory"],
+            "transport": "stdio"
+          }
+        }
+      }
+    },
+    {
+      "name": "Cursor Format",
+      "description": "mcpServers wrapper like Claude",
+      "example": {
+        "mcpServers": {
+          "github": {
+            "transport": "stdio",
+            "command": "npx",
+            "args": ["@modelcontextprotocol/server-github"],
+            "env": {
+              "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Docker Compose Format",
+      "description": "Some servers use docker-compose",
+      "example": {
+        "mcpServers": {
+          "postgres": {
+            "transport": "stdio",
+            "command": "docker-compose",
+            "args": ["run", "--rm", "mcp-postgres"],
+            "env": {
+              "DATABASE_URL": "${DATABASE_URL}"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "SSE Transport Format",
+      "description": "Server-sent events transport",
+      "example": {
+        "mcpServers": {
+          "cloud-api": {
+            "transport": "sse",
+            "url": "https://api.example.com/mcp/sse",
+            "headers": {
+              "Authorization": "Bearer ${API_TOKEN}",
+              "X-Workspace-Id": "${WORKSPACE_ID}"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

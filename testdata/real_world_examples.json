@@ -1,0 +1,159 @@
+{
+  "description": "Real-world MCP server configurations from awesome-mcp-servers",
+  "examples": [
+    {
+      "name": "npx/bunx pattern",
+      "description": "Most common pattern using npm/bun package runners",
+      "examples": [
+        {
+          "server": "filesystem",
+          "config": {
+            "transport": "stdio",
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/files"]
+          }
+        },
+        {
+          "server": "github",
+          "config": {
+            "transport": "stdio",
+            "command": "bunx",
+            "args": ["@modelcontextprotocol/server-github"],
+            "env": {
+              "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Python servers",
+      "description": "Python-based MCP servers using various runners",
+      "examples": [
+        {
+          "server": "python-custom",
+          "config": {
+            "transport": "stdio",
+            "command": "python",
+            "args": ["-m", "mcp_server", "--config", "server.json"]
+          }
+        },
+        {
+          "server": "uv-python",
+          "config": {
+            "transport": "stdio",
+            "command": "uv",
+            "args": ["run", "mcp-server-python"]
+          }
+        }
+      ]
+    },
+    {
+      "name": "SSE endpoints",
+      "description": "Server-sent events for cloud-hosted servers",
+      "examples": [
+        {
+          "server": "cloud-api",
+          "config": {
+            "transport": "sse",
+            "url": "https://api.example.com/mcp/sse",
+            "headers": {
+              "Authorization": "Bearer ${API_TOKEN}",
+              "X-Workspace-Id": "${WORKSPACE_ID}"
+            }
+          }
+        },
+        {
+          "server": "zapier",
+          "config": {
+            "transport": "sse",
+            "url": "https://plugins.zapier.com/api/v1/mcp",
+            "headers": {
+              "X-API-Key": "${ZAPIER_API_KEY}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Binary executables",
+      "description": "Direct binary execution",
+      "examples": [
+        {
+          "server": "rust-server",
+          "config": {
+            "transport": "stdio",
+            "command": "./mcp-rust-server",
+            "args": ["--port", "0"]
+          }
+        },
+        {
+          "server": "go-server",
+          "config": {
+            "transport": "stdio",
+            "command": "/usr/local/bin/mcp-go-server",
+            "env": {
+              "LOG_LEVEL": "debug"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Complex environment setups",
+      "description": "Servers requiring multiple environment variables",
+      "examples": [
+        {
+          "server": "aws-bedrock",
+          "config": {
+            "transport": "stdio",
+            "command": "npx",
+            "args": ["-y", "mcp-server-aws-bedrock"],
+            "env": {
+              "AWS_ACCESS_KEY_ID": "${AWS_ACCESS_KEY_ID}",
+              "AWS_SECRET_ACCESS_KEY": "${AWS_SECRET_ACCESS_KEY}",
+              "AWS_REGION": "${AWS_REGION:-us-east-1}",
+              "AWS_PROFILE": "${AWS_PROFILE}"
+            }
+          }
+        },
+        {
+          "server": "azure",
+          "config": {
+            "transport": "stdio",
+            "command": "bunx",
+            "args": ["mcp-server-azure"],
+            "env": {
+              "AZURE_SUBSCRIPTION_ID": "${AZURE_SUBSCRIPTION_ID}",
+              "AZURE_TENANT_ID": "${AZURE_TENANT_ID}",
+              "AZURE_CLIENT_ID": "${AZURE_CLIENT_ID}",
+              "AZURE_CLIENT_SECRET": "${AZURE_CLIENT_SECRET}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Path-based configurations",
+      "description": "Servers that operate on specific paths",
+      "examples": [
+        {
+          "server": "obsidian",
+          "config": {
+            "transport": "stdio",
+            "command": "bunx",
+            "args": ["mcp-obsidian", "${OBSIDIAN_VAULT_PATH:-~/Documents/Obsidian}"]
+          }
+        },
+        {
+          "server": "sqlite",
+          "config": {
+            "transport": "stdio",
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db", "${SQLITE_DB_PATH}"]
+          }
+        }
+      ]
+    }
+  ]
+}

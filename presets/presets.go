@@ -236,6 +236,15 @@ func (pv *PatternValidator) ValidateConfig(config engine.ServerConfig) error {
 	return nil
 }
 
+func (pv *PatternValidator) ValidateServerConfig(name string, config engine.ServerConfig) error {
+	// Validate name
+	if err := pv.ValidateName(name); err != nil {
+		return err
+	}
+	// Validate config
+	return pv.ValidateConfig(config)
+}
+
 // PresetSanitizer sanitizes names
 type PresetSanitizer struct {
 	sanitize func(string) string

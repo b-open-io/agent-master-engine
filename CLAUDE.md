@@ -175,3 +175,115 @@ When making changes, consider:
 3. Is the implementation generic enough?
 4. Are errors handled gracefully?
 5. Does this introduce platform-specific code to core?
+
+## MCP Configuration Format Support
+
+### Discovered MCP Configuration Formats
+
+Through investigation of the MCP ecosystem, we've identified several configuration formats in use:
+
+#### 1. **Claude Desktop Format** (`mcpServers` wrapper)
+```json
+{
+  "mcpServers": {
+    "server-name": {
+      "transport": "stdio",
+      "command": "bunx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/path"]
+    }
+  }
+}
+```
+Used by: Claude Desktop, Cursor
+
+#### 2. **GitHub MCP Format** (nested `mcp` with `inputs`)
+```json
+{
+  "mcp": {
+    "inputs": [
+      {
+        "type": "promptString",
+        "id": "github_token",
+        "description": "GitHub Personal Access Token",
+        "password": true
+      }
+    ],
+    "servers": {
+      "github": {
+        "command": "docker",
+        "args": ["run", "-i", "--rm", "-e", "GITHUB_PERSONAL_ACCESS_TOKEN", "ghcr.io/github/github-mcp-server"],
+        "env": {
+          "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github_token}"
+        }
+      }
+    }
+  }
+}
+```
+Used by: GitHub's official MCP server
+
+#### 3. **Flat Format** (direct `servers`)
+```json
+{
+  "servers": {
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"],
+      "transport": "stdio"
+    }
+  }
+}
+```
+Used by: Some VS Code extensions, simple configurations
+
+#### 4. **Docker-based Configurations**
+Many production MCP servers use Docker for isolation:
+- `docker run` commands with environment variable mapping
+- `docker-compose` integration for complex setups
+- Container registries (ghcr.io, Docker Hub)
+
+### Variable Substitution Patterns
+
+MCP configurations support several variable substitution patterns:
+
+1. **Environment Variables**: `${ENV_VAR_NAME}`
+2. **Input Variables**: `${input:variable_id}` (requires `inputs` definition)
+3. **Nested Variables**: `${input:api_key}-${USER}`
+
+### Transport Types
+
+1. **stdio** - Standard input/output communication
+   - Most common for local servers
+   - Uses `command` and `args`
+
+2. **sse** - Server-Sent Events over HTTP
+   - For cloud-hosted servers
+   - Uses `url` and `headers`
+
+### MCP Protocol Versions
+
+The MCP specification has evolved through several versions:
+- `2024-11-05` - Initial public release
+- `2025-03-26` - Current version with OAuth 2.1, tool annotations, audio support
+- `draft` - Experimental features (not yet supported)
+
+See `docs/MCP_PROTOCOL_VERSIONS.md` for detailed version differences and compatibility information.
+
+### Implementation Status
+
+Currently, the engine supports:
+- ✅ Basic stdio and SSE transports
+- ✅ Environment variable substitution
+- ✅ Multiple storage backends
+- ❌ `mcp.inputs` configuration format
+- ❌ `${input:xxx}` variable substitution
+- ❌ Docker-compose integration helpers
+
+### TODO for Full MCP Compatibility
+
+1. **Add MCPConfig type** that can parse all format variations
+2. **Implement input prompt system** for collecting user inputs
+3. **Add variable substitution engine** for both env and input variables
+4. **Create format converters** to normalize different formats
+5. **Add Docker integration helpers** for container-based servers
+6. **Support MCP version detection** and compatibility checks
