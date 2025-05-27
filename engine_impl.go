@@ -111,7 +111,7 @@ func NewEngine(opts ...Option) (Engine, error) {
 			DebounceDelay:   e.config.Settings.AutoSync.DebounceDelay,
 			TargetWhitelist: e.config.Settings.AutoSync.Destinations,
 		}
-		
+
 		// Start auto-sync in background
 		go func() {
 			// Small delay to ensure engine is fully initialized
@@ -338,21 +338,21 @@ func (e *engineImpl) SyncToMultiple(ctx context.Context, dests []Destination, op
 	}
 
 	start := time.Now()
-	
+
 	// Use a wait group to sync concurrently
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	
+
 	for _, dest := range dests {
 		wg.Add(1)
 		go func(d Destination) {
 			defer wg.Done()
-			
+
 			syncResult, err := e.SyncTo(ctx, d, options)
-			
+
 			mu.Lock()
 			defer mu.Unlock()
-			
+
 			if err != nil {
 				// Still add the result even if there was an error
 				if syncResult == nil {
@@ -372,14 +372,14 @@ func (e *engineImpl) SyncToMultiple(ctx context.Context, dests []Destination, op
 			} else {
 				result.FailureCount++
 			}
-			
+
 			result.Results = append(result.Results, *syncResult)
 		}(dest)
 	}
-	
+
 	wg.Wait()
 	result.TotalDuration = time.Since(start)
-	
+
 	return result, nil
 }
 
@@ -397,34 +397,94 @@ func (e *engineImpl) GenerateTargetConfig(targetName string) (interface{}, error
 
 func (e *engineImpl) PreviewSync(dest Destination) (*SyncPreview, error) {
 	e.mu.RLock()
-	currentConfig := e.config
-	e.mu.RUnlock()
+	defer e.mu.RUnlock()
 
 	preview := &SyncPreview{
-		Destination:    dest.GetID(),
-		Changes:        []Change{},
-		EstimatedTime:  100 * time.Millisecond, // Rough estimate
-		RequiresBackup: false,
+		Destination: dest.GetID(),
+		Changes:     []Change{},
 	}
 
-	// Get the existing config at destination
-	var existingConfig *Config
+	// Get current config
+	currentConfig := e.config
+	if currentConfig == nil {
+		return preview, nil
+	}
+
+	// Read existing config from destination if it exists
+	var existingConfig interface{}
 	if dest.Exists() {
-		data, err := dest.Read()
-		if err == nil && len(data) > 0 {
-			// Try to parse existing config
-			existingConfig, _ = ParseMCPConfig(data)
+		existingData, err := dest.Read()
+		if err == nil {
+			// Try to parse existing data
+			var existing map[string]interface{}
+			if json.Unmarshal(existingData, &existing) == nil {
+				existingConfig = existing
+			}
 		}
 	}
 
-	// If destination exists and has data, we might want backup
-	if existingConfig != nil && len(existingConfig.Servers) > 0 {
-		preview.RequiresBackup = true
-	}
+	// Calculate changes
+	if existingConfig != nil {
+		// Compare existing vs new
+		existingServers := make(map[string]ServerWithMetadata)
+		if existingMap, ok := existingConfig.(map[string]interface{}); ok {
+			if servers, ok := existingMap["mcpServers"].(map[string]interface{}); ok {
+				for name, serverData := range servers {
+					// Convert back to ServerWithMetadata for comparison
+					if serverMap, ok := serverData.(map[string]interface{}); ok {
+						server := ServerWithMetadata{}
+						// Basic conversion - can be enhanced
+						if transport, ok := serverMap["transport"].(string); ok {
+							server.Transport = transport
+						}
+						if command, ok := serverMap["command"].(string); ok {
+							server.Command = command
+						}
+						existingServers[name] = server
+					}
+				}
+			}
+		}
 
-	// Compare configs to determine changes
-	if existingConfig == nil {
-		// Everything is new
+		// Compare with current config
+		for name, server := range currentConfig.Servers {
+			if server.Internal.Enabled {
+				if existingServer, exists := existingServers[name]; exists {
+					// Check if server changed
+					if !isServerEqual(server.ServerConfig, existingServer.ServerConfig) {
+						preview.Changes = append(preview.Changes, Change{
+							Type:   "update",
+							Server: name,
+							Before: existingServer.ServerConfig,
+							After:  server.ServerConfig,
+						})
+					}
+				} else {
+					// Server added
+					preview.Changes = append(preview.Changes, Change{
+						Type:   "add",
+						Server: name,
+						Before: nil,
+						After:  server.ServerConfig,
+					})
+				}
+			}
+		}
+
+		// Check for removed servers
+		for name, existingServer := range existingServers {
+			if _, exists := currentConfig.Servers[name]; !exists {
+				// Server removed
+				preview.Changes = append(preview.Changes, Change{
+					Type:   "remove",
+					Server: name,
+					Before: existingServer.ServerConfig,
+					After:  nil,
+				})
+			}
+		}
+	} else {
+		// No existing config, everything is new
 		for name, server := range currentConfig.Servers {
 			if server.Internal.Enabled {
 				preview.Changes = append(preview.Changes, Change{
@@ -435,54 +495,6 @@ func (e *engineImpl) PreviewSync(dest Destination) (*SyncPreview, error) {
 				})
 			}
 		}
-	} else {
-		// Compare existing vs new
-		// Check for updates and removals
-		for name, existingServer := range existingConfig.Servers {
-			if newServer, exists := currentConfig.Servers[name]; exists {
-				if newServer.Internal.Enabled {
-					// Check if changed (simple comparison for now)
-					if !isServerEqual(existingServer.ServerConfig, newServer.ServerConfig) {
-						preview.Changes = append(preview.Changes, Change{
-							Type:   "update",
-							Server: name,
-							Before: existingServer.ServerConfig,
-							After:  newServer.ServerConfig,
-						})
-					}
-				} else {
-					// Disabled, so remove
-					preview.Changes = append(preview.Changes, Change{
-						Type:   "remove",
-						Server: name,
-						Before: existingServer.ServerConfig,
-						After:  nil,
-					})
-				}
-			} else {
-				// Server removed
-				preview.Changes = append(preview.Changes, Change{
-					Type:   "remove",
-					Server: name,
-					Before: existingServer.ServerConfig,
-					After:  nil,
-				})
-			}
-		}
-
-		// Check for new servers
-		for name, server := range currentConfig.Servers {
-			if server.Internal.Enabled {
-				if _, exists := existingConfig.Servers[name]; !exists {
-					preview.Changes = append(preview.Changes, Change{
-						Type:   "add",
-						Server: name,
-						Before: nil,
-						After:  server.ServerConfig,
-					})
-				}
-			}
-		}
 	}
 
 	// Estimate time based on number of changes
@@ -490,27 +502,6 @@ func (e *engineImpl) PreviewSync(dest Destination) (*SyncPreview, error) {
 
 	return preview, nil
 }
-
-func (e *engineImpl) ScanForProjects(paths []string, detector ProjectDetector) ([]*ProjectConfig, error) {
-	// TODO: Implement
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (e *engineImpl) RegisterProject(path string, config ProjectConfig) error {
-	// TODO: Implement
-	return fmt.Errorf("not implemented")
-}
-
-func (e *engineImpl) GetProjectConfig(path string) (*ProjectConfig, error) {
-	// TODO: Implement
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (e *engineImpl) ListProjects() ([]*ProjectInfo, error) {
-	// TODO: Implement
-	return nil, fmt.Errorf("not implemented")
-}
-
 
 // Import/Export and Backup methods moved to import_export.go and backup_manager.go
 
@@ -524,7 +515,7 @@ func (e *engineImpl) OnConfigChange(handler ConfigChangeHandler) func() {
 		e.eventBus.on(EventAutoSyncStopped, handler),
 		e.eventBus.on(EventFileChanged, handler),
 	}
-	
+
 	// Return a function that unsubscribes from all
 	return func() {
 		for _, unsub := range unsubscribers {
@@ -623,7 +614,7 @@ func isServerEqual(a, b ServerConfig) bool {
 	if a.Transport != b.Transport || a.Command != b.Command || a.URL != b.URL {
 		return false
 	}
-	
+
 	// Compare args
 	if len(a.Args) != len(b.Args) {
 		return false
@@ -633,7 +624,7 @@ func isServerEqual(a, b ServerConfig) bool {
 			return false
 		}
 	}
-	
+
 	// Compare env vars
 	if len(a.Env) != len(b.Env) {
 		return false
@@ -643,7 +634,7 @@ func isServerEqual(a, b ServerConfig) bool {
 			return false
 		}
 	}
-	
+
 	// Compare headers
 	if len(a.Headers) != len(b.Headers) {
 		return false
@@ -653,7 +644,6 @@ func isServerEqual(a, b ServerConfig) bool {
 			return false
 		}
 	}
-	
+
 	return true
 }
-

@@ -1,0 +1,309 @@
+syntax = "proto3";
+
+package daemon;
+
+option go_package = "github.com/b-open-io/agent-master-engine/daemon/proto";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// Main daemon service
+service AgentMasterDaemon {
+  // Server management
+  rpc AddServer(AddServerRequest) returns (ServerResponse);
+  rpc UpdateServer(UpdateServerRequest) returns (ServerResponse);
+  rpc RemoveServer(RemoveServerRequest) returns (google.protobuf.Empty);
+  rpc GetServer(GetServerRequest) returns (ServerResponse);
+  rpc ListServers(ListServersRequest) returns (ListServersResponse);
+  rpc EnableServer(EnableServerRequest) returns (ServerResponse);
+  rpc DisableServer(DisableServerRequest) returns (ServerResponse);
+
+  // Destination management
+  rpc RegisterDestination(RegisterDestinationRequest) returns (google.protobuf.Empty);
+  rpc RemoveDestination(RemoveDestinationRequest) returns (google.protobuf.Empty);
+  rpc ListDestinations(google.protobuf.Empty) returns (ListDestinationsResponse);
+
+  // Sync operations
+  rpc SyncTo(SyncToRequest) returns (SyncResult);
+  rpc SyncToMultiple(SyncToMultipleRequest) returns (MultiSyncResult);
+  rpc PreviewSync(PreviewSyncRequest) returns (SyncPreview);
+
+  // Auto-sync management
+  rpc StartAutoSync(AutoSyncConfig) returns (google.protobuf.Empty);
+  rpc StopAutoSync(google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc GetAutoSyncStatus(google.protobuf.Empty) returns (AutoSyncStatus);
+
+  // Configuration
+  rpc GetConfig(google.protobuf.Empty) returns (Config);
+  rpc SetConfig(Config) returns (google.protobuf.Empty);
+  rpc LoadConfig(LoadConfigRequest) returns (google.protobuf.Empty);
+  rpc SaveConfig(google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  // Daemon lifecycle
+  rpc GetStatus(google.protobuf.Empty) returns (DaemonStatus);
+  rpc Shutdown(google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  // Events (server-streaming)
+  rpc Subscribe(SubscribeRequest) returns (stream Event);
+}
+
+// Server types
+message ServerConfig {
+  string transport = 1;
+  string command = 2;
+  repeated string args = 3;
+  string url = 4;
+  map<string, string> env = 5;
+  bool enabled = 6;
+  map<string, string> metadata = 7;
+}
+
+message ServerInfo {
+  string name = 1;
+  ServerConfig config = 2;
+  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp updated_at = 4;
+  string source = 5;
+}
+
+// Requests
+message AddServerRequest {
+  string name = 1;
+  ServerConfig config = 2;
+}
+
+message UpdateServerRequest {
+  string name = 1;
+  ServerConfig config = 2;
+}
+
+message RemoveServerRequest {
+  string name = 1;
+}
+
+message GetServerRequest {
+  string name = 1;
+}
+
+message EnableServerRequest {
+  string name = 1;
+}
+
+message DisableServerRequest {
+  string name = 1;
+}
+
+message ListServersRequest {
+  ServerFilter filter = 1;
+}
+
+message ServerFilter {
+  bool enabled_only = 1;
+  string transport = 2;
+  string name_pattern = 3;
+  string source = 4;
+}
+
+// Responses
+message ServerResponse {
+  ServerInfo server = 1;
+}
+
+message ListServersResponse {
+  repeated ServerInfo servers = 1;
+}
+
+// Destination management
+message RegisterDestinationRequest {
+  string name = 1;
+  DestinationType type = 2;
+  string path = 3;
+  map<string, string> options = 4;
+}
+
+message RemoveDestinationRequest {
+  string name = 1;
+}
+
+message ListDestinationsResponse {
+  map<string, DestinationInfo> destinations = 1;
+}
+
+message DestinationInfo {
+  string name = 1;
+  DestinationType type = 2;
+  string description = 3;
+  bool available = 4;
+}
+
+enum DestinationType {
+  FILE = 0;
+  CLAUDE = 1;
+  VSCODE = 2;
+  CURSOR = 3;
+  WINDSURF = 4;
+  ZED = 5;
+  CUSTOM = 99;
+}
+
+// Sync operations
+message SyncToRequest {
+  string destination = 1;
+  SyncOptions options = 2;
+}
+
+message SyncToMultipleRequest {
+  repeated string destinations = 1;
+  SyncOptions options = 2;
+}
+
+message PreviewSyncRequest {
+  string destination = 1;
+}
+
+message SyncOptions {
+  bool force = 1;
+  bool backup = 2;
+  bool dry_run = 3;
+}
+
+message SyncResult {
+  bool success = 1;
+  string message = 2;
+  int32 servers_synced = 3;
+  repeated string errors = 4;
+  google.protobuf.Timestamp timestamp = 5;
+}
+
+message MultiSyncResult {
+  map<string, SyncResult> results = 1;
+  int32 total_success = 2;
+  int32 total_failed = 3;
+}
+
+message SyncPreview {
+  repeated ServerChange changes = 1;
+  int32 total_changes = 2;
+}
+
+message ServerChange {
+  string name = 1;
+  ChangeType type = 2;
+  ServerConfig before = 3;
+  ServerConfig after = 4;
+}
+
+enum ChangeType {
+  ADD = 0;
+  UPDATE = 1;
+  REMOVE = 2;
+  NO_CHANGE = 3;
+}
+
+// Auto-sync
+message AutoSyncConfig {
+  bool enabled = 1;
+  int64 watch_interval_ms = 2;
+  int64 debounce_delay_ms = 3;
+  repeated string target_whitelist = 4;
+  repeated string target_blacklist = 5;
+  repeated string ignore_patterns = 6;
+}
+
+message AutoSyncStatus {
+  bool enabled = 1;
+  bool running = 2;
+  google.protobuf.Timestamp last_sync = 3;
+  int64 watch_interval_ms = 4;
+  string last_error = 5;
+}
+
+// Configuration
+message Config {
+  string version = 1;
+  map<string, ServerConfig> servers = 2;
+  Settings settings = 3;
+}
+
+message Settings {
+  AutoSyncSettings auto_sync = 1;
+  BackupSettings backup = 2;
+  ValidationSettings validation = 3;
+}
+
+message AutoSyncSettings {
+  bool enabled = 1;
+  int64 watch_interval_ms = 2;
+  int64 debounce_delay_ms = 3;
+}
+
+message BackupSettings {
+  bool enabled = 1;
+  string location = 2;
+  int32 max_backups = 3;
+}
+
+message ValidationSettings {
+  bool enabled = 1;
+  bool strict_mode = 2;
+}
+
+message LoadConfigRequest {
+  string path = 1;
+}
+
+// Daemon status
+message DaemonStatus {
+  bool running = 1;
+  string version = 2;
+  google.protobuf.Timestamp start_time = 3;
+  int64 uptime_seconds = 4;
+  int32 active_connections = 5;
+  bool auto_sync_running = 6;
+  string last_error = 7;
+}
+
+// Events
+message SubscribeRequest {
+  repeated EventType types = 1;
+}
+
+message Event {
+  EventType type = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  oneof payload {
+    ConfigChangeEvent config_change = 3;
+    SyncCompleteEvent sync_complete = 4;
+    ErrorEvent error = 5;
+    AutoSyncEvent auto_sync = 6;
+  }
+}
+
+enum EventType {
+  CONFIG_CHANGE = 0;
+  SYNC_COMPLETE = 1;
+  ERROR = 2;
+  AUTO_SYNC_STATUS = 3;
+}
+
+message ConfigChangeEvent {
+  string change_type = 1;
+  string source = 2;
+  repeated string affected_servers = 3;
+}
+
+message SyncCompleteEvent {
+  string destination = 1;
+  bool success = 2;
+  int32 servers_synced = 3;
+}
+
+message ErrorEvent {
+  string message = 1;
+  string component = 2;
+}
+
+message AutoSyncEvent {
+  string status = 1; // started, stopped, triggered
+  string message = 2;
+}

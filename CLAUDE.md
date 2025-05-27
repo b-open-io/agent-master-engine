@@ -2,6 +2,35 @@
 
 This file provides guidance to Claude Code when working with the Agent Master Engine codebase.
 
+## Current State (2025-05-27)
+
+### 🔥 CRITICAL CONTEXT: Daemon Architecture Clarification
+
+After 2+ hours of investigation and implementation, we discovered a fundamental misunderstanding:
+
+**The Vision**: 
+- ONE shared daemon that both Wails app and CLI connect to
+- Auto-sync continues running when either app is closed
+- Daemon should be its own binary living in the engine repo
+- Uses gRPC for communication (with TODO for HTTP/socket adapters)
+
+**What Was Built Wrong**:
+- Spent time building daemon infrastructure in the CLI repo
+- Assumed daemon was CLI-specific
+- Didn't realize the intent was for a shared service
+
+**Current Issues**:
+1. Multiple daemons spawning due to lock file race conditions
+2. Auto-sync state not persisting properly
+3. Every CLI command tries to start a daemon (even `daemon-status`!)
+4. Misleading "Starting daemon..." messages
+
+**Next Steps**:
+1. Move daemon implementation to engine repo as separate binary
+2. Both CLI and Wails app become clients to this shared daemon
+3. Implement proper gRPC service with clean interfaces
+4. Use git worktrees for parallel development
+
 ## Project Overview
 
 Agent Master Engine is a **generic** Go library for managing Model Context Protocol (MCP) server configurations. It provides core functionality for server management, validation, and synchronization without any hardcoded knowledge of specific platforms or tools.
@@ -49,13 +78,13 @@ The engine is intentionally platform-agnostic:
 - Type definitions for all major structures
 - Variable substitution (optional for environment variables)
 - Support for multiple MCP configuration formats
+- Project management functions (ScanForProjects, RegisterProject, GetProjectConfig, ListProjects)
 
 ### 🚧 Partially Implemented
 - Change detection (basic comparison implemented)
 - Destination management (basic registration/listing)
 
 ### ❌ Not Yet Implemented
-- Project management functions (ScanForProjects, RegisterProject, etc.)
 - Export operations (Export, ExportToFile)
 - Backup/Restore system
 - Config merging (MergeConfigs)
@@ -294,3 +323,29 @@ Currently, the engine supports:
 4. **Create format converters** to normalize different formats
 5. **Add Docker integration helpers** for container-based servers
 6. **Support MCP version detection** and compatibility checks
+
+## Recent Fixes (2025-05-27)
+
+### Fixed: Nil Map Panic on Config Load
+- **Issue**: When loading configuration from file, the Servers map was not initialized, causing panic on server operations
+- **Fix**: Added initialization check after loading config to ensure Servers map exists
+- **File**: `config_manager.go:33`
+
+```go
+// Ensure servers map is initialized
+if e.config.Servers == nil {
+    e.config.Servers = make(map[string]ServerConfig)
+}
+```
+
+### Implemented: Project Management Functionality
+- **Issue**: ScanForProjects and related methods returned "not implemented" errors
+- **Fix**: Implemented full project scanning functionality in `project_manager.go`
+- **Features Added**:
+  - `ScanForProjects()` - Recursively scans directories for MCP projects
+  - `RegisterProject()` - Stores project configurations
+  - `GetProjectConfig()` - Retrieves project by path
+  - `ListProjects()` - Lists all registered projects
+  - `DefaultProjectDetector` - Detects common project types (Node.js, Go, Python, etc.)
+  - MCP configuration parsing (Claude Desktop, GitHub MCP, and flat formats)
+- **Files**: `project_manager.go`, `project_manager_test.go`

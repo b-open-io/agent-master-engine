@@ -29,6 +29,11 @@ func (e *engineImpl) LoadConfig(path string) error {
 			// Update the engine's config
 			e.config = &fileConfig
 			
+			// Ensure servers map is initialized
+			if e.config.Servers == nil {
+				e.config.Servers = make(map[string]ServerWithMetadata)
+			}
+			
 			// Also save to storage for consistency
 			if err := SaveJSON(e.storage, Keys.Config(), e.config); err != nil {
 				// Log but don't fail - file is the source of truth

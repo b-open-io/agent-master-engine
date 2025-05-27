@@ -5,7 +5,20 @@ All notable changes to the Agent Master Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.5] - 2025-05-27
+## [0.1.7] - 2025-05-27
+
+### Added
+- Project scanning functionality
+  - `ScanForProjects()` method implementation
+  - `RegisterProject()`, `GetProjectConfig()`, `ListProjects()` methods
+  - `DefaultProjectDetector` for common project types
+  - Support for detecting MCP configurations in projects
+  - Example and documentation in `examples/project_scanning/`
+
+### Fixed
+- Project management methods no longer return "not implemented" errors
+
+## [0.1.6] - 2025-05-27
 
 ### Fixed
 - Auto-sync events (`EventAutoSyncStarted`, `EventAutoSyncStopped`, `EventFileChanged`) are now properly routed through `OnConfigChange` handler
