@@ -62,7 +62,7 @@ func NewEngine(opts ...Option) (Engine, error) {
 	// Initialize auto-sync manager
 	e.autoSync = newAutoSyncManager(e)
 
-	// Initialize config
+	// Initialize config with defaults
 	e.config = &Config{
 		Version: "1.0.2",
 		Servers: make(map[string]ServerWithMetadata),
@@ -96,7 +96,80 @@ func NewEngine(opts ...Option) (Engine, error) {
 		Targets: make(map[string]TargetConfig), // Legacy field
 	}
 
+	// Auto-load config from storage on initialization
+	if err := e.autoLoadConfig(); err != nil {
+		// Log warning but don't fail - we'll use defaults
+		e.eventBus.emit(EventWarning, fmt.Sprintf("failed to auto-load config: %v", err))
+	}
+
+	// Auto-start auto-sync if it was enabled in persisted settings
+	if e.config.Settings.AutoSync.Enabled {
+		// Convert settings to AutoSyncConfig
+		autoSyncConfig := AutoSyncConfig{
+			Enabled:         true,
+			WatchInterval:   e.config.Settings.AutoSync.WatchInterval,
+			DebounceDelay:   e.config.Settings.AutoSync.DebounceDelay,
+			TargetWhitelist: e.config.Settings.AutoSync.Destinations,
+		}
+		
+		// Start auto-sync in background
+		go func() {
+			// Small delay to ensure engine is fully initialized
+			time.Sleep(100 * time.Millisecond)
+			if err := e.autoSync.Start(autoSyncConfig); err != nil {
+				e.eventBus.emit(EventError, fmt.Errorf("failed to auto-start auto-sync: %w", err))
+			}
+		}()
+	}
+
 	return e, nil
+}
+
+// autoLoadConfig attempts to load config from storage
+func (e *engineImpl) autoLoadConfig() error {
+	// Try to load from storage
+	var loadedConfig Config
+	if err := LoadJSON(e.storage, Keys.Config(), &loadedConfig); err != nil {
+		// If not found, that's OK - we'll use defaults
+		if !isNotFoundError(err) {
+			return fmt.Errorf("failed to load config from storage: %w", err)
+		}
+		return nil
+	}
+
+	// Merge loaded config with defaults
+	// Start with loaded config
+	e.config = &loadedConfig
+
+	// Ensure required fields are initialized if missing
+	if e.config.Servers == nil {
+		e.config.Servers = make(map[string]ServerWithMetadata)
+	}
+	if e.config.Targets == nil {
+		e.config.Targets = make(map[string]TargetConfig)
+	}
+
+	// Set version if missing
+	if e.config.Version == "" {
+		e.config.Version = "1.0.2"
+	}
+
+	// Set default settings if missing
+	if e.config.Settings.AutoSync.WatchInterval == 0 {
+		e.config.Settings.AutoSync.WatchInterval = 1 * time.Second
+	}
+	if e.config.Settings.AutoSync.DebounceDelay == 0 {
+		e.config.Settings.AutoSync.DebounceDelay = 500 * time.Millisecond
+	}
+
+	// Emit event
+	e.eventBus.emit(EventConfigLoaded, ConfigChange{
+		Type:      "config-auto-loaded",
+		Timestamp: time.Now(),
+		Source:    "storage",
+	})
+
+	return nil
 }
 
 // Configuration Management methods moved to config_manager.go

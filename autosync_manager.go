@@ -92,6 +92,21 @@ func (asm *autoSyncManager) Start(config AutoSyncConfig) error {
 	asm.isRunning = true
 	asm.stopChan = make(chan struct{})
 
+	// Update and persist auto-sync settings in engine config
+	asm.engine.mu.Lock()
+	asm.engine.config.Settings.AutoSync.Enabled = true
+	asm.engine.config.Settings.AutoSync.WatchInterval = config.WatchInterval
+	asm.engine.config.Settings.AutoSync.DebounceDelay = config.DebounceDelay
+	asm.engine.config.Settings.AutoSync.Destinations = config.TargetWhitelist
+	// Save config without holding the lock
+	saveErr := asm.engine.saveConfigNoLock()
+	asm.engine.mu.Unlock()
+
+	if saveErr != nil {
+		// Log warning but don't fail the start operation
+		asm.engine.eventBus.emit(EventWarning, fmt.Sprintf("failed to persist auto-sync settings: %v", saveErr))
+	}
+
 	// Watch the config file path
 	configPath := asm.engine.configPath
 	if configPath == "" {
@@ -166,6 +181,18 @@ func (asm *autoSyncManager) Stop() error {
 	}
 	asm.mu.Unlock()
 
+	// Update and persist auto-sync disabled state in engine config
+	asm.engine.mu.Lock()
+	asm.engine.config.Settings.AutoSync.Enabled = false
+	// Keep other settings intact for when it's re-enabled
+	saveErr := asm.engine.saveConfigNoLock()
+	asm.engine.mu.Unlock()
+
+	if saveErr != nil {
+		// Log warning but don't fail the stop operation
+		asm.engine.eventBus.emit(EventWarning, fmt.Sprintf("failed to persist auto-sync disabled state: %v", saveErr))
+	}
+
 	// Emit event
 	asm.engine.eventBus.emit(EventAutoSyncStopped, ConfigChange{
 		Type:      "autosync-stopped",
@@ -181,11 +208,22 @@ func (asm *autoSyncManager) GetStatus() (*AutoSyncStatus, error) {
 	asm.mu.Lock()
 	defer asm.mu.Unlock()
 
+	// Get persisted state from engine config
+	asm.engine.mu.RLock()
+	enabled := asm.engine.config.Settings.AutoSync.Enabled
+	watchInterval := asm.engine.config.Settings.AutoSync.WatchInterval
+	asm.engine.mu.RUnlock()
+
+	// Use runtime values if they're set, otherwise use persisted values
+	if asm.config.WatchInterval > 0 {
+		watchInterval = asm.config.WatchInterval
+	}
+
 	status := &AutoSyncStatus{
 		Running:       asm.isRunning,
 		LastSync:      asm.lastSync,
-		Enabled:       asm.config.Enabled,
-		WatchInterval: asm.config.WatchInterval,
+		Enabled:       enabled,
+		WatchInterval: watchInterval,
 	}
 
 	return status, nil

@@ -131,11 +131,19 @@ type SyncResult struct {
 
 // Change represents a configuration change
 type Change struct {
-	Type   string      `json:"type"` // "add", "update", "remove"
-	Server string      `json:"server"`
-	Before interface{} `json:"before,omitempty"`
-	After  interface{} `json:"after,omitempty"`
+	Type        string      `json:"type"` // "add", "update", "remove"
+	Server      string      `json:"server"`
+	Description string      `json:"description,omitempty"`
+	Before      interface{} `json:"before,omitempty"`
+	After       interface{} `json:"after,omitempty"`
 }
+
+// Change type constants
+const (
+	ChangeTypeAdd    = "add"
+	ChangeTypeUpdate = "update"
+	ChangeTypeDelete = "remove"
+)
 
 // ImportOptions controls import behavior
 type ImportOptions struct {
@@ -190,6 +198,7 @@ type SyncPreview struct {
 	Changes        []Change      `json:"changes"`
 	EstimatedTime  time.Duration `json:"estimatedTime"`
 	RequiresBackup bool          `json:"requiresBackup"`
+	HasConflicts   bool          `json:"hasConflicts"`
 }
 
 // MultiSyncResult aggregates multiple sync results
