@@ -212,6 +212,39 @@ func (s *Service) Shutdown(ctx context.Context, req *emptypb.Empty) (*emptypb.Em
 	return &emptypb.Empty{}, nil
 }
 
+// Config management
+
+func (s *Service) GetConfig(ctx context.Context, req *emptypb.Empty) (*pb.Config, error) {
+	config, err := s.daemon.engine.GetConfig()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get config: %v", err)
+	}
+	if config == nil {
+		return nil, status.Error(codes.NotFound, "no configuration loaded")
+	}
+	return engineConfigToProto(config), nil
+}
+
+func (s *Service) SetConfig(ctx context.Context, req *pb.Config) (*emptypb.Empty, error) {
+	config := protoToEngineConfig(req)
+	s.daemon.engine.SetConfig(config)
+	return &emptypb.Empty{}, nil
+}
+
+func (s *Service) LoadConfig(ctx context.Context, req *pb.LoadConfigRequest) (*emptypb.Empty, error) {
+	if err := s.daemon.engine.LoadConfig(req.Path); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to load config: %v", err)
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *Service) SaveConfig(ctx context.Context, req *emptypb.Empty) (*emptypb.Empty, error) {
+	if err := s.daemon.engine.SaveConfig(); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to save config: %v", err)
+	}
+	return &emptypb.Empty{}, nil
+}
+
 // Helper to format addresses
 func formatAddresses(listener string, port int) []string {
 	var addrs []string

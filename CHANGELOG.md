@@ -5,6 +5,23 @@ All notable changes to the Agent Master Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2025-05-27
+
+### Added
+- **Daemon gRPC Service Support** 
+  - Implemented missing gRPC methods: `LoadConfig`, `SaveConfig`, `GetConfig`, `SetConfig`
+  - Added proper type conversions between engine and protobuf formats
+  - Daemon now supports TCP connections via `-port` flag (e.g., `-port 50051`)
+  - Enhanced daemon service for multi-client architecture (CLI + GUI apps)
+
+### Fixed
+- Configuration management via daemon now fully functional
+- Type mismatches between `ServerWithMetadata` and protobuf `ServerConfig` resolved
+- Daemon service methods now properly handle engine configuration format
+
+### Changed
+- Daemon can now run on TCP port in addition to Unix sockets for better cross-application compatibility
+
 ## [0.1.7] - 2025-05-27
 
 ### Added

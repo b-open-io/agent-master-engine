@@ -11,6 +11,46 @@ import (
 
 // Convert engine types to proto types
 
+func engineConfigToProto(config *engine.Config) *pb.Config {
+	servers := make(map[string]*pb.ServerConfig)
+	for name, server := range config.Servers {
+		servers[name] = &pb.ServerConfig{
+			Transport: server.Transport,
+			Command:   server.Command,
+			Args:      server.Args,
+			Url:       server.URL,
+			Env:       server.Env,
+			Enabled:   server.Internal.Enabled,
+		}
+	}
+	
+	return &pb.Config{
+		Servers: servers,
+	}
+}
+
+func protoToEngineConfig(config *pb.Config) *engine.Config {
+	servers := make(map[string]engine.ServerWithMetadata)
+	for name, server := range config.Servers {
+		servers[name] = engine.ServerWithMetadata{
+			ServerConfig: engine.ServerConfig{
+				Transport: server.Transport,
+				Command:   server.Command,
+				Args:      server.Args,
+				URL:       server.Url,
+				Env:       server.Env,
+			},
+			Internal: engine.InternalMetadata{
+				Enabled: server.Enabled,
+			},
+		}
+	}
+	
+	return &engine.Config{
+		Servers: servers,
+	}
+}
+
 func serverConfigToProto(name string, s engine.ServerWithMetadata) *pb.ServerInfo {
 	// Convert metadata interface{} map to string map
 	metadata := make(map[string]string)
