@@ -308,6 +308,41 @@ func (s *Service) ListProjects(ctx context.Context, req *emptypb.Empty) (*pb.Lis
 	return &pb.ListProjectsResponse{Projects: pbProjects}, nil
 }
 
+// Backup management
+
+func (s *Service) CreateBackup(ctx context.Context, req *pb.CreateBackupRequest) (*pb.BackupResponse, error) {
+	backup, err := s.daemon.engine.CreateBackup(req.Description)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to create backup: %v", err)
+	}
+	
+	return &pb.BackupResponse{
+		Backup: engineBackupInfoToPB(backup),
+	}, nil
+}
+
+func (s *Service) ListBackups(ctx context.Context, req *emptypb.Empty) (*pb.ListBackupsResponse, error) {
+	backups, err := s.daemon.engine.ListBackups()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list backups: %v", err)
+	}
+	
+	pbBackups := make([]*pb.BackupInfo, len(backups))
+	for i, backup := range backups {
+		pbBackups[i] = engineBackupInfoToPB(backup)
+	}
+	
+	return &pb.ListBackupsResponse{Backups: pbBackups}, nil
+}
+
+func (s *Service) RestoreBackup(ctx context.Context, req *pb.RestoreBackupRequest) (*emptypb.Empty, error) {
+	if err := s.daemon.engine.RestoreBackup(req.BackupId); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to restore backup: %v", err)
+	}
+	
+	return &emptypb.Empty{}, nil
+}
+
 // Helper to format addresses
 func formatAddresses(listener string, port int) []string {
 	var addrs []string

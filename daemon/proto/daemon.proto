@@ -46,6 +46,11 @@ service AgentMasterDaemon {
   // Events (server-streaming)
   rpc Subscribe(SubscribeRequest) returns (stream Event);
 
+  // Backup management
+  rpc CreateBackup(CreateBackupRequest) returns (BackupResponse);
+  rpc ListBackups(google.protobuf.Empty) returns (ListBackupsResponse);
+  rpc RestoreBackup(RestoreBackupRequest) returns (google.protobuf.Empty);
+
   // Project management
   rpc ScanForProjects(ScanForProjectsRequest) returns (ScanForProjectsResponse);
   rpc RegisterProject(RegisterProjectRequest) returns (google.protobuf.Empty);
@@ -353,4 +358,29 @@ message ProjectConfig {
   string type = 2;
   map<string, string> metadata = 3;
   repeated ServerConfig servers = 4;
+}
+
+// Backup management types
+message CreateBackupRequest {
+  string description = 1;
+}
+
+message BackupResponse {
+  BackupInfo backup = 1;
+}
+
+message ListBackupsResponse {
+  repeated BackupInfo backups = 1;
+}
+
+message RestoreBackupRequest {
+  string backup_id = 1;
+}
+
+message BackupInfo {
+  string id = 1;
+  string description = 2;
+  string path = 3;
+  google.protobuf.Timestamp created_at = 4;
+  int64 size_bytes = 5;
 }

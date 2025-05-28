@@ -43,6 +43,9 @@ const (
 	AgentMasterDaemon_GetStatus_FullMethodName           = "/daemon.AgentMasterDaemon/GetStatus"
 	AgentMasterDaemon_Shutdown_FullMethodName            = "/daemon.AgentMasterDaemon/Shutdown"
 	AgentMasterDaemon_Subscribe_FullMethodName           = "/daemon.AgentMasterDaemon/Subscribe"
+	AgentMasterDaemon_CreateBackup_FullMethodName        = "/daemon.AgentMasterDaemon/CreateBackup"
+	AgentMasterDaemon_ListBackups_FullMethodName         = "/daemon.AgentMasterDaemon/ListBackups"
+	AgentMasterDaemon_RestoreBackup_FullMethodName       = "/daemon.AgentMasterDaemon/RestoreBackup"
 	AgentMasterDaemon_ScanForProjects_FullMethodName     = "/daemon.AgentMasterDaemon/ScanForProjects"
 	AgentMasterDaemon_RegisterProject_FullMethodName     = "/daemon.AgentMasterDaemon/RegisterProject"
 	AgentMasterDaemon_GetProjectConfig_FullMethodName    = "/daemon.AgentMasterDaemon/GetProjectConfig"
@@ -85,6 +88,10 @@ type AgentMasterDaemonClient interface {
 	Shutdown(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Events (server-streaming)
 	Subscribe(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Event], error)
+	// Backup management
+	CreateBackup(ctx context.Context, in *CreateBackupRequest, opts ...grpc.CallOption) (*BackupResponse, error)
+	ListBackups(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListBackupsResponse, error)
+	RestoreBackup(ctx context.Context, in *RestoreBackupRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Project management
 	ScanForProjects(ctx context.Context, in *ScanForProjectsRequest, opts ...grpc.CallOption) (*ScanForProjectsResponse, error)
 	RegisterProject(ctx context.Context, in *RegisterProjectRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
@@ -339,6 +346,36 @@ func (c *agentMasterDaemonClient) Subscribe(ctx context.Context, in *SubscribeRe
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentMasterDaemon_SubscribeClient = grpc.ServerStreamingClient[Event]
 
+func (c *agentMasterDaemonClient) CreateBackup(ctx context.Context, in *CreateBackupRequest, opts ...grpc.CallOption) (*BackupResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BackupResponse)
+	err := c.cc.Invoke(ctx, AgentMasterDaemon_CreateBackup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentMasterDaemonClient) ListBackups(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListBackupsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListBackupsResponse)
+	err := c.cc.Invoke(ctx, AgentMasterDaemon_ListBackups_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentMasterDaemonClient) RestoreBackup(ctx context.Context, in *RestoreBackupRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, AgentMasterDaemon_RestoreBackup_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *agentMasterDaemonClient) ScanForProjects(ctx context.Context, in *ScanForProjectsRequest, opts ...grpc.CallOption) (*ScanForProjectsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ScanForProjectsResponse)
@@ -415,6 +452,10 @@ type AgentMasterDaemonServer interface {
 	Shutdown(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	// Events (server-streaming)
 	Subscribe(*SubscribeRequest, grpc.ServerStreamingServer[Event]) error
+	// Backup management
+	CreateBackup(context.Context, *CreateBackupRequest) (*BackupResponse, error)
+	ListBackups(context.Context, *emptypb.Empty) (*ListBackupsResponse, error)
+	RestoreBackup(context.Context, *RestoreBackupRequest) (*emptypb.Empty, error)
 	// Project management
 	ScanForProjects(context.Context, *ScanForProjectsRequest) (*ScanForProjectsResponse, error)
 	RegisterProject(context.Context, *RegisterProjectRequest) (*emptypb.Empty, error)
@@ -498,6 +539,15 @@ func (UnimplementedAgentMasterDaemonServer) Shutdown(context.Context, *emptypb.E
 }
 func (UnimplementedAgentMasterDaemonServer) Subscribe(*SubscribeRequest, grpc.ServerStreamingServer[Event]) error {
 	return status.Errorf(codes.Unimplemented, "method Subscribe not implemented")
+}
+func (UnimplementedAgentMasterDaemonServer) CreateBackup(context.Context, *CreateBackupRequest) (*BackupResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateBackup not implemented")
+}
+func (UnimplementedAgentMasterDaemonServer) ListBackups(context.Context, *emptypb.Empty) (*ListBackupsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListBackups not implemented")
+}
+func (UnimplementedAgentMasterDaemonServer) RestoreBackup(context.Context, *RestoreBackupRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RestoreBackup not implemented")
 }
 func (UnimplementedAgentMasterDaemonServer) ScanForProjects(context.Context, *ScanForProjectsRequest) (*ScanForProjectsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ScanForProjects not implemented")
@@ -939,6 +989,60 @@ func _AgentMasterDaemon_Subscribe_Handler(srv interface{}, stream grpc.ServerStr
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentMasterDaemon_SubscribeServer = grpc.ServerStreamingServer[Event]
 
+func _AgentMasterDaemon_CreateBackup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateBackupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentMasterDaemonServer).CreateBackup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentMasterDaemon_CreateBackup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentMasterDaemonServer).CreateBackup(ctx, req.(*CreateBackupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentMasterDaemon_ListBackups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentMasterDaemonServer).ListBackups(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentMasterDaemon_ListBackups_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentMasterDaemonServer).ListBackups(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentMasterDaemon_RestoreBackup_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RestoreBackupRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentMasterDaemonServer).RestoreBackup(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentMasterDaemon_RestoreBackup_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentMasterDaemonServer).RestoreBackup(ctx, req.(*RestoreBackupRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AgentMasterDaemon_ScanForProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ScanForProjectsRequest)
 	if err := dec(in); err != nil {
@@ -1105,6 +1209,18 @@ var AgentMasterDaemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Shutdown",
 			Handler:    _AgentMasterDaemon_Shutdown_Handler,
+		},
+		{
+			MethodName: "CreateBackup",
+			Handler:    _AgentMasterDaemon_CreateBackup_Handler,
+		},
+		{
+			MethodName: "ListBackups",
+			Handler:    _AgentMasterDaemon_ListBackups_Handler,
+		},
+		{
+			MethodName: "RestoreBackup",
+			Handler:    _AgentMasterDaemon_RestoreBackup_Handler,
 		},
 		{
 			MethodName: "ScanForProjects",

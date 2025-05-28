@@ -625,6 +625,71 @@ func (c *Client) SaveConfig(ctx context.Context) error {
 	})
 }
 
+// Backup Management
+
+// CreateBackup creates a new configuration backup
+func (c *Client) CreateBackup(ctx context.Context, description string) (*pb.BackupInfo, error) {
+	if err := c.ensureConnected(); err != nil {
+		return nil, err
+	}
+
+	var resp *pb.BackupResponse
+	err := c.withRetry(ctx, func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(ctx, c.options.RequestTimeout)
+		defer cancel()
+		
+		var err error
+		resp, err = c.client.CreateBackup(ctx, &pb.CreateBackupRequest{
+			Description: description,
+		})
+		return err
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	return resp.Backup, nil
+}
+
+// ListBackups lists all available configuration backups
+func (c *Client) ListBackups(ctx context.Context) ([]*pb.BackupInfo, error) {
+	if err := c.ensureConnected(); err != nil {
+		return nil, err
+	}
+
+	var resp *pb.ListBackupsResponse
+	err := c.withRetry(ctx, func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(ctx, c.options.RequestTimeout)
+		defer cancel()
+		
+		var err error
+		resp, err = c.client.ListBackups(ctx, &emptypb.Empty{})
+		return err
+	})
+	
+	if err != nil {
+		return nil, err
+	}
+	return resp.Backups, nil
+}
+
+// RestoreBackup restores configuration from a backup
+func (c *Client) RestoreBackup(ctx context.Context, backupID string) error {
+	if err := c.ensureConnected(); err != nil {
+		return err
+	}
+
+	return c.withRetry(ctx, func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(ctx, c.options.RequestTimeout)
+		defer cancel()
+		
+		_, err := c.client.RestoreBackup(ctx, &pb.RestoreBackupRequest{
+			BackupId: backupID,
+		})
+		return err
+	})
+}
+
 // Daemon Lifecycle
 
 // GetStatus retrieves the daemon status

@@ -46,7 +46,7 @@ func (e *engineImpl) CreateBackup(description string) (*BackupInfo, error) {
 	}
 
 	// Store backup metadata
-	metadataKey := fmt.Sprintf("backup-meta/%s", backupID)
+	metadataKey := fmt.Sprintf("backup-meta:%s", backupID)
 	metaData, _ := json.Marshal(info)
 	if err := e.storage.Write(metadataKey, metaData); err != nil {
 		// Try to clean up the backup
@@ -71,7 +71,7 @@ func (e *engineImpl) CreateBackup(description string) (*BackupInfo, error) {
 // ListBackups returns a list of all backups
 func (e *engineImpl) ListBackups() ([]*BackupInfo, error) {
 	// List all backup metadata keys
-	metaKeys, err := e.storage.List("backup-meta/")
+	metaKeys, err := e.storage.List("backup-meta:")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list backup metadata: %w", err)
 	}

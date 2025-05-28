@@ -315,3 +315,14 @@ func engineProjectConfigToPB(config *engine.ProjectConfig) *pb.ProjectConfig {
 		Servers:  servers,
 	}
 }
+
+// Backup conversion functions
+func engineBackupInfoToPB(backup *engine.BackupInfo) *pb.BackupInfo {
+	return &pb.BackupInfo{
+		Id:          backup.ID,
+		Description: backup.Description,
+		Path:        backup.Path,
+		CreatedAt:   timestamppb.New(backup.Timestamp),
+		SizeBytes:   backup.Size,
+	}
+}
