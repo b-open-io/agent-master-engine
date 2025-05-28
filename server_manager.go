@@ -86,6 +86,66 @@ func (e *engineImpl) UpdateServer(name string, server ServerConfig) error {
 	return nil
 }
 
+// EnableServer enables a server for sync operations
+func (e *engineImpl) EnableServer(name string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	existing, exists := e.config.Servers[name]
+	if !exists {
+		return fmt.Errorf("server %q not found", name)
+	}
+
+	// Update enabled status
+	existing.Internal.Enabled = true
+	existing.Internal.LastModified = time.Now()
+	e.config.Servers[name] = existing
+
+	// Save config (without lock since we already hold it)
+	if err := e.saveConfigNoLock(); err != nil {
+		return err
+	}
+
+	e.eventBus.emit(EventServerUpdated, ConfigChange{
+		Type:      "server-enabled",
+		Name:      name,
+		Timestamp: time.Now(),
+		Source:    "user",
+	})
+
+	return nil
+}
+
+// DisableServer disables a server from sync operations
+func (e *engineImpl) DisableServer(name string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	existing, exists := e.config.Servers[name]
+	if !exists {
+		return fmt.Errorf("server %q not found", name)
+	}
+
+	// Update enabled status
+	existing.Internal.Enabled = false
+	existing.Internal.LastModified = time.Now()
+	e.config.Servers[name] = existing
+
+	// Save config (without lock since we already hold it)
+	if err := e.saveConfigNoLock(); err != nil {
+		return err
+	}
+
+	e.eventBus.emit(EventServerUpdated, ConfigChange{
+		Type:      "server-disabled",
+		Name:      name,
+		Timestamp: time.Now(),
+		Source:    "user",
+	})
+
+	return nil
+}
+
 // RemoveServer removes a server configuration
 func (e *engineImpl) RemoveServer(name string) error {
 	e.mu.Lock()

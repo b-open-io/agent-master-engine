@@ -19,6 +19,8 @@ type Engine interface {
 	RemoveServer(name string) error
 	GetServer(name string) (*ServerWithMetadata, error)
 	ListServers(filter ServerFilter) ([]*ServerInfo, error)
+	EnableServer(name string) error
+	DisableServer(name string) error
 
 	// Destination Management
 	RegisterDestination(name string, dest Destination) error

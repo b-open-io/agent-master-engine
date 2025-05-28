@@ -9,20 +9,17 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// Enable/Disable server methods (implemented via Update)
+// Enable/Disable server methods (using proper engine methods)
 func (s *Service) EnableServer(ctx context.Context, req *pb.EnableServerRequest) (*pb.ServerResponse, error) {
-	// Get current server
-	server, err := s.daemon.engine.GetServer(req.Name)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "server not found: %v", err)
+	// Enable the server using the proper engine method
+	if err := s.daemon.engine.EnableServer(req.Name); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to enable server: %v", err)
 	}
 	
-	// Enable it
-	server.Internal.Enabled = true
-	
-	// Update the server
-	if err := s.daemon.engine.UpdateServer(req.Name, server.ServerConfig); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to enable server: %v", err)
+	// Get updated server to return
+	server, err := s.daemon.engine.GetServer(req.Name)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "server not found after enable: %v", err)
 	}
 	
 	// Return updated server
@@ -32,18 +29,15 @@ func (s *Service) EnableServer(ctx context.Context, req *pb.EnableServerRequest)
 }
 
 func (s *Service) DisableServer(ctx context.Context, req *pb.DisableServerRequest) (*pb.ServerResponse, error) {
-	// Get current server
-	server, err := s.daemon.engine.GetServer(req.Name)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "server not found: %v", err)
+	// Disable the server using the proper engine method
+	if err := s.daemon.engine.DisableServer(req.Name); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to disable server: %v", err)
 	}
 	
-	// Disable it
-	server.Internal.Enabled = false
-	
-	// Update the server
-	if err := s.daemon.engine.UpdateServer(req.Name, server.ServerConfig); err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to disable server: %v", err)
+	// Get updated server to return
+	server, err := s.daemon.engine.GetServer(req.Name)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "server not found after disable: %v", err)
 	}
 	
 	// Return updated server
