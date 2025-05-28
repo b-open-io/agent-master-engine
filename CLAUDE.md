@@ -101,14 +101,20 @@ The engine is intentionally platform-agnostic:
 - Change detection (basic comparison implemented)
 - Destination management (basic registration/listing)
 
-### ❌ Not Yet Implemented
-- Export operations (Export, ExportToFile)
-- Backup/Restore system
-- Config merging (MergeConfigs)
-- Import from target (ImportFromTarget)
-- Advanced sync features (merge strategies, conflict resolution)
-- Health checks and diagnostics
-- Input variable collection (${input:xxx} patterns)
+### ❌ Still Not Implemented
+- Export operations (Export, ExportToFile) - Low priority, basic export works
+- Enhanced backup/restore system - Basic backup works via destinations
+- Import from target (ImportFromTarget) - Low priority, UI has own import logic
+- Advanced sync features (merge strategies, conflict resolution) - Basic conflict resolution works
+- Health checks and diagnostics - Would be nice to have
+- Input variable collection (${input:xxx} patterns) - For advanced MCP configs
+
+### ✅ Recently Fixed (2025-05-27/28)
+- Version reporting across all components
+- Preset destination support in daemon
+- CLI panic issues with nil results
+- LoadConfig server overwriting bug
+- Project scanning functionality
 
 ## Code Style Guidelines
 
