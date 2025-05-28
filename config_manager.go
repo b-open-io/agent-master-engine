@@ -25,28 +25,25 @@ func (e *engineImpl) LoadConfig(path string) error {
 			if err := json.Unmarshal(data, &fileConfig); err != nil {
 				return fmt.Errorf("failed to parse config from file: %w", err)
 			}
-			
+
 			// Update the engine's config
 			e.config = &fileConfig
-			
+
 			// Ensure servers map is initialized
 			if e.config.Servers == nil {
 				e.config.Servers = make(map[string]ServerWithMetadata)
 			}
-			
-			// Also save to storage for consistency
-			if err := SaveJSON(e.storage, Keys.Config(), e.config); err != nil {
-				// Log but don't fail - file is the source of truth
-				e.eventBus.emit(EventWarning, fmt.Sprintf("failed to save config to storage: %v", err))
-			}
-			
+
+			// DO NOT save to storage - file is the source of truth
+			// This was causing the CLI overwriting bug
+
 			// Emit event
 			e.eventBus.emit(EventConfigLoaded, ConfigChange{
 				Type:      "config-loaded",
 				Timestamp: time.Now(),
 				Source:    "file",
 			})
-			
+
 			return nil
 		}
 	}
@@ -79,8 +76,22 @@ func (e *engineImpl) SaveConfig() error {
 
 // saveConfigNoLock saves config without acquiring lock (caller must hold lock)
 func (e *engineImpl) saveConfigNoLock() error {
-	if err := SaveJSON(e.storage, Keys.Config(), e.config); err != nil {
-		return fmt.Errorf("failed to save config: %w", err)
+	// If we have a config file path, save to file instead of storage
+	if e.configPath != "" {
+		expandedPath := expandPath(e.configPath)
+		data, err := json.MarshalIndent(e.config, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal config: %w", err)
+		}
+
+		if err := os.WriteFile(expandedPath, data, 0644); err != nil {
+			return fmt.Errorf("failed to write config file: %w", err)
+		}
+	} else {
+		// Fall back to storage backend
+		if err := SaveJSON(e.storage, Keys.Config(), e.config); err != nil {
+			return fmt.Errorf("failed to save config: %w", err)
+		}
 	}
 
 	e.eventBus.emit(EventConfigSaved, ConfigChange{
@@ -121,11 +132,11 @@ func (e *engineImpl) SetConfig(config *Config) error {
 
 	e.config = config
 	err := e.saveConfigNoLock()
-	
+
 	// Trigger auto-sync if enabled
 	if err == nil && e.autoSync != nil && e.autoSync.isRunning {
 		go e.autoSync.debouncedSync()
 	}
-	
+
 	return err
 }

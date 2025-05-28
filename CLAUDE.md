@@ -4,6 +4,23 @@ This file provides guidance to Claude Code when working with the Agent Master En
 
 ## Current State (2025-05-27)
 
+### 🎉 MAJOR UPDATE: Project Scanning Implemented (v0.1.7)
+
+**The Issue**: Project scanning functionality was returning "not implemented" errors, blocking the daemon migration strategy.
+
+**The Solution**: Fully implemented project management functionality with protocol-compliant MCP parsing.
+
+**What's Now Available**:
+- ✅ `ScanForProjects()` - Recursively scan directories for MCP projects
+- ✅ `RegisterProject()` - Store project configurations  
+- ✅ `GetProjectConfig()` - Retrieve projects by path
+- ✅ `ListProjects()` - List all registered projects
+- ✅ `DefaultProjectDetector` - Detect common project types
+- ✅ Full MCP format support (Claude Desktop, GitHub MCP, flat formats)
+- ✅ Working example in `examples/project_scanning/`
+
+**Impact**: The user's Wails app can now successfully scan for projects, eliminating the "not implemented" error and enabling the Phase 2 daemon migration.
+
 ### 🔥 CRITICAL CONTEXT: Daemon Architecture Clarification
 
 After 2+ hours of investigation and implementation, we discovered a fundamental misunderstanding:
@@ -349,3 +366,24 @@ if e.config.Servers == nil {
   - `DefaultProjectDetector` - Detects common project types (Node.js, Go, Python, etc.)
   - MCP configuration parsing (Claude Desktop, GitHub MCP, and flat formats)
 - **Files**: `project_manager.go`, `project_manager_test.go`
+- **Version**: Released in v0.1.7 (2025-05-27)
+
+### Fixed: Protocol Compliance
+- **Issue**: Custom MCP parsing could have protocol violations
+- **Fix**: Replaced custom parsing with existing `ParseMCPConfig()` function
+- **Result**: Ensures full compliance with MCP specification and proper handling of all documented formats
+
+### 🚨 CRITICAL FIX: LoadConfig Server Overwriting Bug
+- **Issue**: CLI was overwriting entire server configuration instead of accumulating servers
+- **Root Cause**: `LoadConfig()` method saved to storage backend after loading from file, creating file/storage conflicts
+- **Symptoms**: 
+  - Every CLI `add` command lost previous servers
+  - Multiple servers could not be maintained via CLI
+  - Data loss and user frustration
+- **Fix**: 
+  - Removed storage save from `LoadConfig()` when loading from file
+  - Updated `saveConfigNoLock()` to save to file when `configPath` is set
+  - File is now the single source of truth when specified
+- **Files**: `config_manager.go`, `config_manager_test.go`
+- **Testing**: Added `TestLoadConfigFileConsistency` to prevent regression
+- **Version**: Fixed in v0.1.9 (2025-05-27)

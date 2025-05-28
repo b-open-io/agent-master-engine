@@ -152,6 +152,7 @@ func (e *engineImpl) ListServers(filter ServerFilter) ([]*ServerInfo, error) {
 
 		info := &ServerInfo{
 			Name:            name,
+			Config:          server.ServerConfig,
 			Transport:       server.Transport,
 			Enabled:         server.Internal.Enabled,
 			SyncTargetCount: len(server.Internal.SyncTargets),
