@@ -105,6 +105,14 @@ func protoToServerConfig(name string, config *pb.ServerConfig) engine.ServerWith
 }
 
 func syncResultToProto(r *engine.SyncResult) *pb.SyncResult {
+	if r == nil {
+		return &pb.SyncResult{
+			Success:   false,
+			Message:   "No result returned from sync operation",
+			Timestamp: timestamppb.New(time.Now()),
+		}
+	}
+	
 	result := &pb.SyncResult{
 		Success:       r.Success,
 		Message:       formatSyncMessage(r),

@@ -69,7 +69,7 @@ func New(config Config) (*Daemon, error) {
 	
 	ctx, cancel := context.WithCancel(context.Background())
 	
-	return &Daemon{
+	d := &Daemon{
 		config:       config,
 		engine:       eng,
 		logger:       logger,
@@ -77,7 +77,15 @@ func New(config Config) (*Daemon, error) {
 		lastActivity: time.Now(),
 		ctx:          ctx,
 		cancel:       cancel,
-	}, nil
+	}
+	
+	// Register preset destinations
+	if err := d.registerPresetDestinations(); err != nil {
+		logger.Warn("Failed to register some preset destinations", "error", err)
+		// Continue anyway - this is not fatal
+	}
+	
+	return d, nil
 }
 
 // Run starts the daemon and blocks until shutdown
