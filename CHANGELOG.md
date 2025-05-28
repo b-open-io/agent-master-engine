@@ -5,6 +5,25 @@ All notable changes to the Agent Master Engine will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.10] - 2025-05-27
+
+### Added
+- **Daemon Preset Support**
+  - Daemon now automatically registers preset destinations on startup
+  - Registers all presets from presets package (claude, vscode-mcp, cursor, generic-json)
+  - Adds vscode alias that maps to vscode-mcp for backward compatibility
+  - Registers windsurf and zed as custom destinations with proper transformers
+  - Presets are now available for sync operations without manual registration
+- **Version Reporting**
+  - Daemon now reports actual version information
+  - Added Version, GitCommit, and BuildDate variables
+  - Created Makefile with proper ldflags for version injection
+  - Daemon status now shows version like "0.1.9 (14ea75d)"
+
+### Fixed
+- Fixed nil result handling in daemon's syncResultToProto function
+- Fixed ActiveConnections type mismatch in daemon status (int64 -> int32)
+
 ## [0.1.9] - 2025-05-27
 
 ### Fixed
