@@ -116,13 +116,25 @@ func (pd *PresetDestination) Transform(config *engine.Config) (interface{}, erro
 	case "project-nested":
 		return pd.transformProjectNested(config), nil
 	default:
-		return config.Servers, nil
+		// Filter enabled servers only
+		enabledServers := make(map[string]engine.ServerWithMetadata)
+		for name, server := range config.Servers {
+			if server.Internal.Enabled {
+				enabledServers[name] = server
+			}
+		}
+		return enabledServers, nil
 	}
 }
 
 func (pd *PresetDestination) transformFlat(config *engine.Config) map[string]interface{} {
 	servers := make(map[string]engine.ServerConfig)
 	for name, server := range config.Servers {
+		// Only include enabled servers
+		if !server.Internal.Enabled {
+			continue
+		}
+		
 		if pd.preset.RequiresSanitization && pd.preset.NameSanitizer != nil {
 			name = pd.preset.NameSanitizer(name)
 		}
@@ -310,11 +322,16 @@ func sanitizeForClaude(name string) string {
 
 // Example transformer for Claude's specific format
 func transformForClaude(config *engine.Config) (interface{}, error) {
-	// This would handle Claude's project-nested format
-	// Reading existing config, preserving non-MCP fields, etc.
-	// For now, simplified
+	// Filter enabled servers only
+	enabledServers := make(map[string]engine.ServerWithMetadata)
+	for name, server := range config.Servers {
+		if server.Internal.Enabled {
+			enabledServers[name] = server
+		}
+	}
+	
 	return map[string]interface{}{
-		"mcpServers": config.Servers,
+		"mcpServers": enabledServers,
 	}, nil
 }
 
