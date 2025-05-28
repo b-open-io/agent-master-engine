@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -31,8 +32,8 @@ type Preset struct {
 var CommonPresets = map[string]Preset{
 	"claude": {
 		Name:                 "claude",
-		Description:          "Claude Code configuration",
-		DefaultPath:          "~/.claude.json",
+		Description:          "Claude Desktop configuration",
+		DefaultPath:          getClaudeDesktopConfigPath(),
 		ConfigFormat:         "project-nested",
 		FileFormat:           "json",
 		NamePattern:          "^[a-zA-Z0-9_-]{1,64}$",
@@ -94,6 +95,10 @@ func (pd *PresetDestination) GetID() string {
 
 func (pd *PresetDestination) GetDescription() string {
 	return pd.preset.Description
+}
+
+func (pd *PresetDestination) GetPath() string {
+	return pd.path
 }
 
 func (pd *PresetDestination) Transform(config *engine.Config) (interface{}, error) {
@@ -311,4 +316,29 @@ func transformForClaude(config *engine.Config) (interface{}, error) {
 	return map[string]interface{}{
 		"mcpServers": config.Servers,
 	}, nil
+}
+
+// getClaudeDesktopConfigPath returns the platform-specific Claude Desktop config path
+func getClaudeDesktopConfigPath() string {
+	switch runtime.GOOS {
+	case "darwin": // macOS
+		if home, err := os.UserHomeDir(); err == nil {
+			return filepath.Join(home, "Library", "Application Support", "Claude", "claude_desktop_config.json")
+		}
+	case "windows":
+		if appData := os.Getenv("APPDATA"); appData != "" {
+			return filepath.Join(appData, "Claude", "claude_desktop_config.json")
+		}
+	case "linux":
+		if home, err := os.UserHomeDir(); err == nil {
+			// Try XDG_CONFIG_HOME first, fallback to ~/.config
+			if configHome := os.Getenv("XDG_CONFIG_HOME"); configHome != "" {
+				return filepath.Join(configHome, "Claude", "claude_desktop_config.json")
+			}
+			return filepath.Join(home, ".config", "Claude", "claude_desktop_config.json")
+		}
+	}
+	
+	// Fallback to the old default
+	return "~/.claude.json"
 }

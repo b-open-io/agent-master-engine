@@ -43,6 +43,10 @@ const (
 	AgentMasterDaemon_GetStatus_FullMethodName           = "/daemon.AgentMasterDaemon/GetStatus"
 	AgentMasterDaemon_Shutdown_FullMethodName            = "/daemon.AgentMasterDaemon/Shutdown"
 	AgentMasterDaemon_Subscribe_FullMethodName           = "/daemon.AgentMasterDaemon/Subscribe"
+	AgentMasterDaemon_ScanForProjects_FullMethodName     = "/daemon.AgentMasterDaemon/ScanForProjects"
+	AgentMasterDaemon_RegisterProject_FullMethodName     = "/daemon.AgentMasterDaemon/RegisterProject"
+	AgentMasterDaemon_GetProjectConfig_FullMethodName    = "/daemon.AgentMasterDaemon/GetProjectConfig"
+	AgentMasterDaemon_ListProjects_FullMethodName        = "/daemon.AgentMasterDaemon/ListProjects"
 )
 
 // AgentMasterDaemonClient is the client API for AgentMasterDaemon service.
@@ -81,6 +85,11 @@ type AgentMasterDaemonClient interface {
 	Shutdown(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*emptypb.Empty, error)
 	// Events (server-streaming)
 	Subscribe(ctx context.Context, in *SubscribeRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[Event], error)
+	// Project management
+	ScanForProjects(ctx context.Context, in *ScanForProjectsRequest, opts ...grpc.CallOption) (*ScanForProjectsResponse, error)
+	RegisterProject(ctx context.Context, in *RegisterProjectRequest, opts ...grpc.CallOption) (*emptypb.Empty, error)
+	GetProjectConfig(ctx context.Context, in *GetProjectConfigRequest, opts ...grpc.CallOption) (*ProjectConfigResponse, error)
+	ListProjects(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListProjectsResponse, error)
 }
 
 type agentMasterDaemonClient struct {
@@ -330,6 +339,46 @@ func (c *agentMasterDaemonClient) Subscribe(ctx context.Context, in *SubscribeRe
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentMasterDaemon_SubscribeClient = grpc.ServerStreamingClient[Event]
 
+func (c *agentMasterDaemonClient) ScanForProjects(ctx context.Context, in *ScanForProjectsRequest, opts ...grpc.CallOption) (*ScanForProjectsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ScanForProjectsResponse)
+	err := c.cc.Invoke(ctx, AgentMasterDaemon_ScanForProjects_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentMasterDaemonClient) RegisterProject(ctx context.Context, in *RegisterProjectRequest, opts ...grpc.CallOption) (*emptypb.Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(emptypb.Empty)
+	err := c.cc.Invoke(ctx, AgentMasterDaemon_RegisterProject_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentMasterDaemonClient) GetProjectConfig(ctx context.Context, in *GetProjectConfigRequest, opts ...grpc.CallOption) (*ProjectConfigResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProjectConfigResponse)
+	err := c.cc.Invoke(ctx, AgentMasterDaemon_GetProjectConfig_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *agentMasterDaemonClient) ListProjects(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*ListProjectsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListProjectsResponse)
+	err := c.cc.Invoke(ctx, AgentMasterDaemon_ListProjects_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AgentMasterDaemonServer is the server API for AgentMasterDaemon service.
 // All implementations must embed UnimplementedAgentMasterDaemonServer
 // for forward compatibility.
@@ -366,6 +415,11 @@ type AgentMasterDaemonServer interface {
 	Shutdown(context.Context, *emptypb.Empty) (*emptypb.Empty, error)
 	// Events (server-streaming)
 	Subscribe(*SubscribeRequest, grpc.ServerStreamingServer[Event]) error
+	// Project management
+	ScanForProjects(context.Context, *ScanForProjectsRequest) (*ScanForProjectsResponse, error)
+	RegisterProject(context.Context, *RegisterProjectRequest) (*emptypb.Empty, error)
+	GetProjectConfig(context.Context, *GetProjectConfigRequest) (*ProjectConfigResponse, error)
+	ListProjects(context.Context, *emptypb.Empty) (*ListProjectsResponse, error)
 	mustEmbedUnimplementedAgentMasterDaemonServer()
 }
 
@@ -444,6 +498,18 @@ func (UnimplementedAgentMasterDaemonServer) Shutdown(context.Context, *emptypb.E
 }
 func (UnimplementedAgentMasterDaemonServer) Subscribe(*SubscribeRequest, grpc.ServerStreamingServer[Event]) error {
 	return status.Errorf(codes.Unimplemented, "method Subscribe not implemented")
+}
+func (UnimplementedAgentMasterDaemonServer) ScanForProjects(context.Context, *ScanForProjectsRequest) (*ScanForProjectsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ScanForProjects not implemented")
+}
+func (UnimplementedAgentMasterDaemonServer) RegisterProject(context.Context, *RegisterProjectRequest) (*emptypb.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RegisterProject not implemented")
+}
+func (UnimplementedAgentMasterDaemonServer) GetProjectConfig(context.Context, *GetProjectConfigRequest) (*ProjectConfigResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProjectConfig not implemented")
+}
+func (UnimplementedAgentMasterDaemonServer) ListProjects(context.Context, *emptypb.Empty) (*ListProjectsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListProjects not implemented")
 }
 func (UnimplementedAgentMasterDaemonServer) mustEmbedUnimplementedAgentMasterDaemonServer() {}
 func (UnimplementedAgentMasterDaemonServer) testEmbeddedByValue()                           {}
@@ -873,6 +939,78 @@ func _AgentMasterDaemon_Subscribe_Handler(srv interface{}, stream grpc.ServerStr
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AgentMasterDaemon_SubscribeServer = grpc.ServerStreamingServer[Event]
 
+func _AgentMasterDaemon_ScanForProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ScanForProjectsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentMasterDaemonServer).ScanForProjects(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentMasterDaemon_ScanForProjects_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentMasterDaemonServer).ScanForProjects(ctx, req.(*ScanForProjectsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentMasterDaemon_RegisterProject_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RegisterProjectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentMasterDaemonServer).RegisterProject(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentMasterDaemon_RegisterProject_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentMasterDaemonServer).RegisterProject(ctx, req.(*RegisterProjectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentMasterDaemon_GetProjectConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetProjectConfigRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentMasterDaemonServer).GetProjectConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentMasterDaemon_GetProjectConfig_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentMasterDaemonServer).GetProjectConfig(ctx, req.(*GetProjectConfigRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AgentMasterDaemon_ListProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AgentMasterDaemonServer).ListProjects(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AgentMasterDaemon_ListProjects_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AgentMasterDaemonServer).ListProjects(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AgentMasterDaemon_ServiceDesc is the grpc.ServiceDesc for AgentMasterDaemon service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -967,6 +1105,22 @@ var AgentMasterDaemon_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Shutdown",
 			Handler:    _AgentMasterDaemon_Shutdown_Handler,
+		},
+		{
+			MethodName: "ScanForProjects",
+			Handler:    _AgentMasterDaemon_ScanForProjects_Handler,
+		},
+		{
+			MethodName: "RegisterProject",
+			Handler:    _AgentMasterDaemon_RegisterProject_Handler,
+		},
+		{
+			MethodName: "GetProjectConfig",
+			Handler:    _AgentMasterDaemon_GetProjectConfig_Handler,
+		},
+		{
+			MethodName: "ListProjects",
+			Handler:    _AgentMasterDaemon_ListProjects_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

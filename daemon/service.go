@@ -259,6 +259,55 @@ func (s *Service) SaveConfig(ctx context.Context, req *emptypb.Empty) (*emptypb.
 	return &emptypb.Empty{}, nil
 }
 
+// Project management methods
+func (s *Service) ScanForProjects(ctx context.Context, req *pb.ScanForProjectsRequest) (*pb.ScanForProjectsResponse, error) {
+	// Use default detector and scan only the specified root path
+	detector := engine.NewDefaultProjectDetector()
+	projects, err := s.daemon.engine.ScanForProjects([]string{req.RootPath}, detector)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to scan for projects: %v", err)
+	}
+	
+	pbProjects := make([]*pb.ProjectInfo, len(projects))
+	for i, project := range projects {
+		pbProjects[i] = engineProjectConfigToPBInfo(project)
+	}
+	
+	return &pb.ScanForProjectsResponse{Projects: pbProjects}, nil
+}
+
+func (s *Service) RegisterProject(ctx context.Context, req *pb.RegisterProjectRequest) (*emptypb.Empty, error) {
+	config := pbToEngineProjectConfig(req.Config)
+	config.Path = req.Path // Set path from request
+	if err := s.daemon.engine.RegisterProject(req.Path, *config); err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to register project: %v", err)
+	}
+	return &emptypb.Empty{}, nil
+}
+
+func (s *Service) GetProjectConfig(ctx context.Context, req *pb.GetProjectConfigRequest) (*pb.ProjectConfigResponse, error) {
+	config, err := s.daemon.engine.GetProjectConfig(req.Path)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to get project config: %v", err)
+	}
+	
+	return &pb.ProjectConfigResponse{Config: engineProjectConfigToPB(config)}, nil
+}
+
+func (s *Service) ListProjects(ctx context.Context, req *emptypb.Empty) (*pb.ListProjectsResponse, error) {
+	projects, err := s.daemon.engine.ListProjects()
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to list projects: %v", err)
+	}
+	
+	pbProjects := make([]*pb.ProjectInfo, len(projects))
+	for i, project := range projects {
+		pbProjects[i] = engineProjectInfoToPB(project)
+	}
+	
+	return &pb.ListProjectsResponse{Projects: pbProjects}, nil
+}
+
 // Helper to format addresses
 func formatAddresses(listener string, port int) []string {
 	var addrs []string

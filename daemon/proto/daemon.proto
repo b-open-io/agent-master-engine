@@ -45,6 +45,12 @@ service AgentMasterDaemon {
 
   // Events (server-streaming)
   rpc Subscribe(SubscribeRequest) returns (stream Event);
+
+  // Project management
+  rpc ScanForProjects(ScanForProjectsRequest) returns (ScanForProjectsResponse);
+  rpc RegisterProject(RegisterProjectRequest) returns (google.protobuf.Empty);
+  rpc GetProjectConfig(GetProjectConfigRequest) returns (ProjectConfigResponse);
+  rpc ListProjects(google.protobuf.Empty) returns (ListProjectsResponse);
 }
 
 // Server types
@@ -306,4 +312,45 @@ message ErrorEvent {
 message AutoSyncEvent {
   string status = 1; // started, stopped, triggered
   string message = 2;
+}
+
+// Project management types
+message ScanForProjectsRequest {
+  string root_path = 1;
+}
+
+message ScanForProjectsResponse {
+  repeated ProjectInfo projects = 1;
+}
+
+message RegisterProjectRequest {
+  string path = 1;
+  ProjectConfig config = 2;
+}
+
+message GetProjectConfigRequest {
+  string path = 1;
+}
+
+message ProjectConfigResponse {
+  ProjectConfig config = 1;
+}
+
+message ListProjectsResponse {
+  repeated ProjectInfo projects = 1;
+}
+
+message ProjectInfo {
+  string name = 1;
+  string path = 2;
+  string type = 3;
+  ProjectConfig config = 4;
+  google.protobuf.Timestamp detected_at = 5;
+}
+
+message ProjectConfig {
+  string name = 1;
+  string type = 2;
+  map<string, string> metadata = 3;
+  repeated ServerConfig servers = 4;
 }

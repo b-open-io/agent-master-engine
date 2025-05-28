@@ -203,3 +203,115 @@ func formatMultiSyncMessage(mr *engine.MultiSyncResult) string {
 	}
 	return "Some syncs failed"
 }
+
+// Project conversion functions
+func engineProjectInfoToPB(project *engine.ProjectInfo) *pb.ProjectInfo {
+	return &pb.ProjectInfo{
+		Name: project.Name,
+		Path: project.Path,
+		Type: "",  // ProjectInfo doesn't have Type field in engine
+		Config: &pb.ProjectConfig{
+			Name:     project.Name,
+			Type:     "",
+			Metadata: make(map[string]string),
+			Servers:  []*pb.ServerConfig{}, // Will be populated from project.Servers if needed
+		},
+		DetectedAt: timestamppb.Now(), // Use current time as ProjectInfo doesn't have DetectedAt
+	}
+}
+
+func engineProjectConfigToPBInfo(project *engine.ProjectConfig) *pb.ProjectInfo {
+	return &pb.ProjectInfo{
+		Name: project.Name,
+		Path: project.Path,
+		Type: "",  // ProjectConfig doesn't have Type field in engine
+		Config: engineProjectConfigToPB(project),
+		DetectedAt: timestamppb.Now(), // Use current time
+	}
+}
+
+func pbToEngineProjectConfig(config *pb.ProjectConfig) *engine.ProjectConfig {
+	servers := make(map[string]engine.ServerWithMetadata)
+	for _, srv := range config.Servers {
+		// Convert map[string]string to map[string]interface{}
+		metadata := make(map[string]interface{})
+		for k, v := range srv.Metadata {
+			metadata[k] = v
+		}
+		
+		servers[srv.Command] = engine.ServerWithMetadata{
+			ServerConfig: engine.ServerConfig{
+				Transport: srv.Transport,
+				Command:   srv.Command,
+				Args:      srv.Args,
+				URL:       srv.Url,
+				Env:       srv.Env,
+				Metadata:  metadata,
+			},
+			Internal: engine.InternalMetadata{
+				Enabled: srv.Enabled,
+			},
+		}
+	}
+	
+	// Convert string metadata to interface{} metadata
+	metadata := make(map[string]interface{})
+	for k, v := range config.Metadata {
+		metadata[k] = v
+	}
+	
+	return &engine.ProjectConfig{
+		Name:     config.Name,
+		Path:     "", // Will be set by caller
+		Servers:  servers,
+		Metadata: metadata,
+	}
+}
+
+func engineProjectConfigToPB(config *engine.ProjectConfig) *pb.ProjectConfig {
+	servers := make([]*pb.ServerConfig, 0, len(config.Servers))
+	for _, srv := range config.Servers {
+		// Convert map[string]interface{} to map[string]string
+		metadata := make(map[string]string)
+		for k, v := range srv.Metadata {
+			if str, ok := v.(string); ok {
+				metadata[k] = str
+			} else {
+				// Convert non-string values to JSON
+				if jsonBytes, err := json.Marshal(v); err == nil {
+					metadata[k] = string(jsonBytes)
+				}
+			}
+		}
+		
+		servers = append(servers, &pb.ServerConfig{
+			Transport: srv.Transport,
+			Command:   srv.Command,
+			Args:      srv.Args,
+			Url:       srv.URL,
+			Env:       srv.Env,
+			Enabled:   srv.Internal.Enabled,
+			Metadata:  metadata,
+		})
+	}
+	
+	// Convert interface{} metadata to string metadata
+	metadata := make(map[string]string)
+	for k, v := range config.Metadata {
+		if str, ok := v.(string); ok {
+			metadata[k] = str
+		} else {
+			// Convert non-string values to JSON
+			if jsonBytes, err := json.Marshal(v); err == nil {
+				metadata[k] = string(jsonBytes)
+			}
+		}
+	}
+	
+	return &pb.ProjectConfig{
+		Name:     config.Name,
+		Type:     "", // ProjectConfig doesn't have Type field in engine
+		Metadata: metadata,
+		Servers:  servers,
+	}
+}

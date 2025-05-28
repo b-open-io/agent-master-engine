@@ -2519,6 +2519,423 @@ func (x *AutoSyncEvent) GetMessage() string {
 	return ""
 }
 
+// Project management types
+type ScanForProjectsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RootPath      string                 `protobuf:"bytes,1,opt,name=root_path,json=rootPath,proto3" json:"root_path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScanForProjectsRequest) Reset() {
+	*x = ScanForProjectsRequest{}
+	mi := &file_daemon_proto_daemon_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScanForProjectsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScanForProjectsRequest) ProtoMessage() {}
+
+func (x *ScanForProjectsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_proto_daemon_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScanForProjectsRequest.ProtoReflect.Descriptor instead.
+func (*ScanForProjectsRequest) Descriptor() ([]byte, []int) {
+	return file_daemon_proto_daemon_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *ScanForProjectsRequest) GetRootPath() string {
+	if x != nil {
+		return x.RootPath
+	}
+	return ""
+}
+
+type ScanForProjectsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Projects      []*ProjectInfo         `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ScanForProjectsResponse) Reset() {
+	*x = ScanForProjectsResponse{}
+	mi := &file_daemon_proto_daemon_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ScanForProjectsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ScanForProjectsResponse) ProtoMessage() {}
+
+func (x *ScanForProjectsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_proto_daemon_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ScanForProjectsResponse.ProtoReflect.Descriptor instead.
+func (*ScanForProjectsResponse) Descriptor() ([]byte, []int) {
+	return file_daemon_proto_daemon_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *ScanForProjectsResponse) GetProjects() []*ProjectInfo {
+	if x != nil {
+		return x.Projects
+	}
+	return nil
+}
+
+type RegisterProjectRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	Config        *ProjectConfig         `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterProjectRequest) Reset() {
+	*x = RegisterProjectRequest{}
+	mi := &file_daemon_proto_daemon_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterProjectRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterProjectRequest) ProtoMessage() {}
+
+func (x *RegisterProjectRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_proto_daemon_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterProjectRequest.ProtoReflect.Descriptor instead.
+func (*RegisterProjectRequest) Descriptor() ([]byte, []int) {
+	return file_daemon_proto_daemon_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *RegisterProjectRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *RegisterProjectRequest) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type GetProjectConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetProjectConfigRequest) Reset() {
+	*x = GetProjectConfigRequest{}
+	mi := &file_daemon_proto_daemon_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetProjectConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetProjectConfigRequest) ProtoMessage() {}
+
+func (x *GetProjectConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_proto_daemon_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetProjectConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetProjectConfigRequest) Descriptor() ([]byte, []int) {
+	return file_daemon_proto_daemon_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *GetProjectConfigRequest) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type ProjectConfigResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Config        *ProjectConfig         `protobuf:"bytes,1,opt,name=config,proto3" json:"config,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectConfigResponse) Reset() {
+	*x = ProjectConfigResponse{}
+	mi := &file_daemon_proto_daemon_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectConfigResponse) ProtoMessage() {}
+
+func (x *ProjectConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_proto_daemon_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectConfigResponse.ProtoReflect.Descriptor instead.
+func (*ProjectConfigResponse) Descriptor() ([]byte, []int) {
+	return file_daemon_proto_daemon_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *ProjectConfigResponse) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+type ListProjectsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Projects      []*ProjectInfo         `protobuf:"bytes,1,rep,name=projects,proto3" json:"projects,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListProjectsResponse) Reset() {
+	*x = ListProjectsResponse{}
+	mi := &file_daemon_proto_daemon_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListProjectsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListProjectsResponse) ProtoMessage() {}
+
+func (x *ListProjectsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_proto_daemon_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListProjectsResponse.ProtoReflect.Descriptor instead.
+func (*ListProjectsResponse) Descriptor() ([]byte, []int) {
+	return file_daemon_proto_daemon_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *ListProjectsResponse) GetProjects() []*ProjectInfo {
+	if x != nil {
+		return x.Projects
+	}
+	return nil
+}
+
+type ProjectInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Path          string                 `protobuf:"bytes,2,opt,name=path,proto3" json:"path,omitempty"`
+	Type          string                 `protobuf:"bytes,3,opt,name=type,proto3" json:"type,omitempty"`
+	Config        *ProjectConfig         `protobuf:"bytes,4,opt,name=config,proto3" json:"config,omitempty"`
+	DetectedAt    *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=detected_at,json=detectedAt,proto3" json:"detected_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectInfo) Reset() {
+	*x = ProjectInfo{}
+	mi := &file_daemon_proto_daemon_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectInfo) ProtoMessage() {}
+
+func (x *ProjectInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_proto_daemon_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectInfo.ProtoReflect.Descriptor instead.
+func (*ProjectInfo) Descriptor() ([]byte, []int) {
+	return file_daemon_proto_daemon_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *ProjectInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ProjectInfo) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *ProjectInfo) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ProjectInfo) GetConfig() *ProjectConfig {
+	if x != nil {
+		return x.Config
+	}
+	return nil
+}
+
+func (x *ProjectInfo) GetDetectedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.DetectedAt
+	}
+	return nil
+}
+
+type ProjectConfig struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Metadata      map[string]string      `protobuf:"bytes,3,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Servers       []*ServerConfig        `protobuf:"bytes,4,rep,name=servers,proto3" json:"servers,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ProjectConfig) Reset() {
+	*x = ProjectConfig{}
+	mi := &file_daemon_proto_daemon_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProjectConfig) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProjectConfig) ProtoMessage() {}
+
+func (x *ProjectConfig) ProtoReflect() protoreflect.Message {
+	mi := &file_daemon_proto_daemon_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProjectConfig.ProtoReflect.Descriptor instead.
+func (*ProjectConfig) Descriptor() ([]byte, []int) {
+	return file_daemon_proto_daemon_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *ProjectConfig) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ProjectConfig) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ProjectConfig) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
+func (x *ProjectConfig) GetServers() []*ServerConfig {
+	if x != nil {
+		return x.Servers
+	}
+	return nil
+}
+
 var File_daemon_proto_daemon_proto protoreflect.FileDescriptor
 
 const file_daemon_proto_daemon_proto_rawDesc = "" +
@@ -2703,7 +3120,35 @@ const file_daemon_proto_daemon_proto_rawDesc = "" +
 	"\tcomponent\x18\x02 \x01(\tR\tcomponent\"A\n" +
 	"\rAutoSyncEvent\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
-	"\amessage\x18\x02 \x01(\tR\amessage*b\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"5\n" +
+	"\x16ScanForProjectsRequest\x12\x1b\n" +
+	"\troot_path\x18\x01 \x01(\tR\brootPath\"J\n" +
+	"\x17ScanForProjectsResponse\x12/\n" +
+	"\bprojects\x18\x01 \x03(\v2\x13.daemon.ProjectInfoR\bprojects\"[\n" +
+	"\x16RegisterProjectRequest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12-\n" +
+	"\x06config\x18\x02 \x01(\v2\x15.daemon.ProjectConfigR\x06config\"-\n" +
+	"\x17GetProjectConfigRequest\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\"F\n" +
+	"\x15ProjectConfigResponse\x12-\n" +
+	"\x06config\x18\x01 \x01(\v2\x15.daemon.ProjectConfigR\x06config\"G\n" +
+	"\x14ListProjectsResponse\x12/\n" +
+	"\bprojects\x18\x01 \x03(\v2\x13.daemon.ProjectInfoR\bprojects\"\xb5\x01\n" +
+	"\vProjectInfo\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04path\x18\x02 \x01(\tR\x04path\x12\x12\n" +
+	"\x04type\x18\x03 \x01(\tR\x04type\x12-\n" +
+	"\x06config\x18\x04 \x01(\v2\x15.daemon.ProjectConfigR\x06config\x12;\n" +
+	"\vdetected_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"detectedAt\"\xe5\x01\n" +
+	"\rProjectConfig\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12?\n" +
+	"\bmetadata\x18\x03 \x03(\v2#.daemon.ProjectConfig.MetadataEntryR\bmetadata\x12.\n" +
+	"\aservers\x18\x04 \x03(\v2\x14.daemon.ServerConfigR\aservers\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01*b\n" +
 	"\x0fDestinationType\x12\b\n" +
 	"\x04FILE\x10\x00\x12\n" +
 	"\n" +
@@ -2728,7 +3173,7 @@ const file_daemon_proto_daemon_proto_rawDesc = "" +
 	"\rCONFIG_CHANGE\x10\x00\x12\x11\n" +
 	"\rSYNC_COMPLETE\x10\x01\x12\t\n" +
 	"\x05ERROR\x10\x02\x12\x14\n" +
-	"\x10AUTO_SYNC_STATUS\x10\x032\xfc\v\n" +
+	"\x10AUTO_SYNC_STATUS\x10\x032\xb5\x0e\n" +
 	"\x11AgentMasterDaemon\x12=\n" +
 	"\tAddServer\x12\x18.daemon.AddServerRequest\x1a\x16.daemon.ServerResponse\x12C\n" +
 	"\fUpdateServer\x12\x1b.daemon.UpdateServerRequest\x1a\x16.daemon.ServerResponse\x12C\n" +
@@ -2754,7 +3199,11 @@ const file_daemon_proto_daemon_proto_rawDesc = "" +
 	"SaveConfig\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x129\n" +
 	"\tGetStatus\x12\x16.google.protobuf.Empty\x1a\x14.daemon.DaemonStatus\x12:\n" +
 	"\bShutdown\x12\x16.google.protobuf.Empty\x1a\x16.google.protobuf.Empty\x126\n" +
-	"\tSubscribe\x12\x18.daemon.SubscribeRequest\x1a\r.daemon.Event0\x01B7Z5github.com/b-open-io/agent-master-engine/daemon/protob\x06proto3"
+	"\tSubscribe\x12\x18.daemon.SubscribeRequest\x1a\r.daemon.Event0\x01\x12R\n" +
+	"\x0fScanForProjects\x12\x1e.daemon.ScanForProjectsRequest\x1a\x1f.daemon.ScanForProjectsResponse\x12I\n" +
+	"\x0fRegisterProject\x12\x1e.daemon.RegisterProjectRequest\x1a\x16.google.protobuf.Empty\x12R\n" +
+	"\x10GetProjectConfig\x12\x1f.daemon.GetProjectConfigRequest\x1a\x1d.daemon.ProjectConfigResponse\x12D\n" +
+	"\fListProjects\x12\x16.google.protobuf.Empty\x1a\x1c.daemon.ListProjectsResponseB7Z5github.com/b-open-io/agent-master-engine/daemon/protob\x06proto3"
 
 var (
 	file_daemon_proto_daemon_proto_rawDescOnce sync.Once
@@ -2769,7 +3218,7 @@ func file_daemon_proto_daemon_proto_rawDescGZIP() []byte {
 }
 
 var file_daemon_proto_daemon_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_daemon_proto_daemon_proto_msgTypes = make([]protoimpl.MessageInfo, 45)
+var file_daemon_proto_daemon_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
 var file_daemon_proto_daemon_proto_goTypes = []any{
 	(DestinationType)(0),               // 0: daemon.DestinationType
 	(ChangeType)(0),                    // 1: daemon.ChangeType
@@ -2813,106 +3262,131 @@ var file_daemon_proto_daemon_proto_goTypes = []any{
 	(*SyncCompleteEvent)(nil),          // 39: daemon.SyncCompleteEvent
 	(*ErrorEvent)(nil),                 // 40: daemon.ErrorEvent
 	(*AutoSyncEvent)(nil),              // 41: daemon.AutoSyncEvent
-	nil,                                // 42: daemon.ServerConfig.EnvEntry
-	nil,                                // 43: daemon.ServerConfig.MetadataEntry
-	nil,                                // 44: daemon.RegisterDestinationRequest.OptionsEntry
-	nil,                                // 45: daemon.ListDestinationsResponse.DestinationsEntry
-	nil,                                // 46: daemon.MultiSyncResult.ResultsEntry
-	nil,                                // 47: daemon.Config.ServersEntry
-	(*timestamppb.Timestamp)(nil),      // 48: google.protobuf.Timestamp
-	(*emptypb.Empty)(nil),              // 49: google.protobuf.Empty
+	(*ScanForProjectsRequest)(nil),     // 42: daemon.ScanForProjectsRequest
+	(*ScanForProjectsResponse)(nil),    // 43: daemon.ScanForProjectsResponse
+	(*RegisterProjectRequest)(nil),     // 44: daemon.RegisterProjectRequest
+	(*GetProjectConfigRequest)(nil),    // 45: daemon.GetProjectConfigRequest
+	(*ProjectConfigResponse)(nil),      // 46: daemon.ProjectConfigResponse
+	(*ListProjectsResponse)(nil),       // 47: daemon.ListProjectsResponse
+	(*ProjectInfo)(nil),                // 48: daemon.ProjectInfo
+	(*ProjectConfig)(nil),              // 49: daemon.ProjectConfig
+	nil,                                // 50: daemon.ServerConfig.EnvEntry
+	nil,                                // 51: daemon.ServerConfig.MetadataEntry
+	nil,                                // 52: daemon.RegisterDestinationRequest.OptionsEntry
+	nil,                                // 53: daemon.ListDestinationsResponse.DestinationsEntry
+	nil,                                // 54: daemon.MultiSyncResult.ResultsEntry
+	nil,                                // 55: daemon.Config.ServersEntry
+	nil,                                // 56: daemon.ProjectConfig.MetadataEntry
+	(*timestamppb.Timestamp)(nil),      // 57: google.protobuf.Timestamp
+	(*emptypb.Empty)(nil),              // 58: google.protobuf.Empty
 }
 var file_daemon_proto_daemon_proto_depIdxs = []int32{
-	42, // 0: daemon.ServerConfig.env:type_name -> daemon.ServerConfig.EnvEntry
-	43, // 1: daemon.ServerConfig.metadata:type_name -> daemon.ServerConfig.MetadataEntry
+	50, // 0: daemon.ServerConfig.env:type_name -> daemon.ServerConfig.EnvEntry
+	51, // 1: daemon.ServerConfig.metadata:type_name -> daemon.ServerConfig.MetadataEntry
 	3,  // 2: daemon.ServerInfo.config:type_name -> daemon.ServerConfig
-	48, // 3: daemon.ServerInfo.created_at:type_name -> google.protobuf.Timestamp
-	48, // 4: daemon.ServerInfo.updated_at:type_name -> google.protobuf.Timestamp
+	57, // 3: daemon.ServerInfo.created_at:type_name -> google.protobuf.Timestamp
+	57, // 4: daemon.ServerInfo.updated_at:type_name -> google.protobuf.Timestamp
 	3,  // 5: daemon.AddServerRequest.config:type_name -> daemon.ServerConfig
 	3,  // 6: daemon.UpdateServerRequest.config:type_name -> daemon.ServerConfig
 	12, // 7: daemon.ListServersRequest.filter:type_name -> daemon.ServerFilter
 	4,  // 8: daemon.ServerResponse.server:type_name -> daemon.ServerInfo
 	4,  // 9: daemon.ListServersResponse.servers:type_name -> daemon.ServerInfo
 	0,  // 10: daemon.RegisterDestinationRequest.type:type_name -> daemon.DestinationType
-	44, // 11: daemon.RegisterDestinationRequest.options:type_name -> daemon.RegisterDestinationRequest.OptionsEntry
-	45, // 12: daemon.ListDestinationsResponse.destinations:type_name -> daemon.ListDestinationsResponse.DestinationsEntry
+	52, // 11: daemon.RegisterDestinationRequest.options:type_name -> daemon.RegisterDestinationRequest.OptionsEntry
+	53, // 12: daemon.ListDestinationsResponse.destinations:type_name -> daemon.ListDestinationsResponse.DestinationsEntry
 	0,  // 13: daemon.DestinationInfo.type:type_name -> daemon.DestinationType
 	22, // 14: daemon.SyncToRequest.options:type_name -> daemon.SyncOptions
 	22, // 15: daemon.SyncToMultipleRequest.options:type_name -> daemon.SyncOptions
-	48, // 16: daemon.SyncResult.timestamp:type_name -> google.protobuf.Timestamp
-	46, // 17: daemon.MultiSyncResult.results:type_name -> daemon.MultiSyncResult.ResultsEntry
+	57, // 16: daemon.SyncResult.timestamp:type_name -> google.protobuf.Timestamp
+	54, // 17: daemon.MultiSyncResult.results:type_name -> daemon.MultiSyncResult.ResultsEntry
 	26, // 18: daemon.SyncPreview.changes:type_name -> daemon.ServerChange
 	1,  // 19: daemon.ServerChange.type:type_name -> daemon.ChangeType
 	3,  // 20: daemon.ServerChange.before:type_name -> daemon.ServerConfig
 	3,  // 21: daemon.ServerChange.after:type_name -> daemon.ServerConfig
-	48, // 22: daemon.AutoSyncStatus.last_sync:type_name -> google.protobuf.Timestamp
-	47, // 23: daemon.Config.servers:type_name -> daemon.Config.ServersEntry
+	57, // 22: daemon.AutoSyncStatus.last_sync:type_name -> google.protobuf.Timestamp
+	55, // 23: daemon.Config.servers:type_name -> daemon.Config.ServersEntry
 	30, // 24: daemon.Config.settings:type_name -> daemon.Settings
 	31, // 25: daemon.Settings.auto_sync:type_name -> daemon.AutoSyncSettings
 	32, // 26: daemon.Settings.backup:type_name -> daemon.BackupSettings
 	33, // 27: daemon.Settings.validation:type_name -> daemon.ValidationSettings
-	48, // 28: daemon.DaemonStatus.start_time:type_name -> google.protobuf.Timestamp
+	57, // 28: daemon.DaemonStatus.start_time:type_name -> google.protobuf.Timestamp
 	2,  // 29: daemon.SubscribeRequest.types:type_name -> daemon.EventType
 	2,  // 30: daemon.Event.type:type_name -> daemon.EventType
-	48, // 31: daemon.Event.timestamp:type_name -> google.protobuf.Timestamp
+	57, // 31: daemon.Event.timestamp:type_name -> google.protobuf.Timestamp
 	38, // 32: daemon.Event.config_change:type_name -> daemon.ConfigChangeEvent
 	39, // 33: daemon.Event.sync_complete:type_name -> daemon.SyncCompleteEvent
 	40, // 34: daemon.Event.error:type_name -> daemon.ErrorEvent
 	41, // 35: daemon.Event.auto_sync:type_name -> daemon.AutoSyncEvent
-	18, // 36: daemon.ListDestinationsResponse.DestinationsEntry.value:type_name -> daemon.DestinationInfo
-	23, // 37: daemon.MultiSyncResult.ResultsEntry.value:type_name -> daemon.SyncResult
-	3,  // 38: daemon.Config.ServersEntry.value:type_name -> daemon.ServerConfig
-	5,  // 39: daemon.AgentMasterDaemon.AddServer:input_type -> daemon.AddServerRequest
-	6,  // 40: daemon.AgentMasterDaemon.UpdateServer:input_type -> daemon.UpdateServerRequest
-	7,  // 41: daemon.AgentMasterDaemon.RemoveServer:input_type -> daemon.RemoveServerRequest
-	8,  // 42: daemon.AgentMasterDaemon.GetServer:input_type -> daemon.GetServerRequest
-	11, // 43: daemon.AgentMasterDaemon.ListServers:input_type -> daemon.ListServersRequest
-	9,  // 44: daemon.AgentMasterDaemon.EnableServer:input_type -> daemon.EnableServerRequest
-	10, // 45: daemon.AgentMasterDaemon.DisableServer:input_type -> daemon.DisableServerRequest
-	15, // 46: daemon.AgentMasterDaemon.RegisterDestination:input_type -> daemon.RegisterDestinationRequest
-	16, // 47: daemon.AgentMasterDaemon.RemoveDestination:input_type -> daemon.RemoveDestinationRequest
-	49, // 48: daemon.AgentMasterDaemon.ListDestinations:input_type -> google.protobuf.Empty
-	19, // 49: daemon.AgentMasterDaemon.SyncTo:input_type -> daemon.SyncToRequest
-	20, // 50: daemon.AgentMasterDaemon.SyncToMultiple:input_type -> daemon.SyncToMultipleRequest
-	21, // 51: daemon.AgentMasterDaemon.PreviewSync:input_type -> daemon.PreviewSyncRequest
-	27, // 52: daemon.AgentMasterDaemon.StartAutoSync:input_type -> daemon.AutoSyncConfig
-	49, // 53: daemon.AgentMasterDaemon.StopAutoSync:input_type -> google.protobuf.Empty
-	49, // 54: daemon.AgentMasterDaemon.GetAutoSyncStatus:input_type -> google.protobuf.Empty
-	49, // 55: daemon.AgentMasterDaemon.GetConfig:input_type -> google.protobuf.Empty
-	29, // 56: daemon.AgentMasterDaemon.SetConfig:input_type -> daemon.Config
-	34, // 57: daemon.AgentMasterDaemon.LoadConfig:input_type -> daemon.LoadConfigRequest
-	49, // 58: daemon.AgentMasterDaemon.SaveConfig:input_type -> google.protobuf.Empty
-	49, // 59: daemon.AgentMasterDaemon.GetStatus:input_type -> google.protobuf.Empty
-	49, // 60: daemon.AgentMasterDaemon.Shutdown:input_type -> google.protobuf.Empty
-	36, // 61: daemon.AgentMasterDaemon.Subscribe:input_type -> daemon.SubscribeRequest
-	13, // 62: daemon.AgentMasterDaemon.AddServer:output_type -> daemon.ServerResponse
-	13, // 63: daemon.AgentMasterDaemon.UpdateServer:output_type -> daemon.ServerResponse
-	49, // 64: daemon.AgentMasterDaemon.RemoveServer:output_type -> google.protobuf.Empty
-	13, // 65: daemon.AgentMasterDaemon.GetServer:output_type -> daemon.ServerResponse
-	14, // 66: daemon.AgentMasterDaemon.ListServers:output_type -> daemon.ListServersResponse
-	13, // 67: daemon.AgentMasterDaemon.EnableServer:output_type -> daemon.ServerResponse
-	13, // 68: daemon.AgentMasterDaemon.DisableServer:output_type -> daemon.ServerResponse
-	49, // 69: daemon.AgentMasterDaemon.RegisterDestination:output_type -> google.protobuf.Empty
-	49, // 70: daemon.AgentMasterDaemon.RemoveDestination:output_type -> google.protobuf.Empty
-	17, // 71: daemon.AgentMasterDaemon.ListDestinations:output_type -> daemon.ListDestinationsResponse
-	23, // 72: daemon.AgentMasterDaemon.SyncTo:output_type -> daemon.SyncResult
-	24, // 73: daemon.AgentMasterDaemon.SyncToMultiple:output_type -> daemon.MultiSyncResult
-	25, // 74: daemon.AgentMasterDaemon.PreviewSync:output_type -> daemon.SyncPreview
-	49, // 75: daemon.AgentMasterDaemon.StartAutoSync:output_type -> google.protobuf.Empty
-	49, // 76: daemon.AgentMasterDaemon.StopAutoSync:output_type -> google.protobuf.Empty
-	28, // 77: daemon.AgentMasterDaemon.GetAutoSyncStatus:output_type -> daemon.AutoSyncStatus
-	29, // 78: daemon.AgentMasterDaemon.GetConfig:output_type -> daemon.Config
-	49, // 79: daemon.AgentMasterDaemon.SetConfig:output_type -> google.protobuf.Empty
-	49, // 80: daemon.AgentMasterDaemon.LoadConfig:output_type -> google.protobuf.Empty
-	49, // 81: daemon.AgentMasterDaemon.SaveConfig:output_type -> google.protobuf.Empty
-	35, // 82: daemon.AgentMasterDaemon.GetStatus:output_type -> daemon.DaemonStatus
-	49, // 83: daemon.AgentMasterDaemon.Shutdown:output_type -> google.protobuf.Empty
-	37, // 84: daemon.AgentMasterDaemon.Subscribe:output_type -> daemon.Event
-	62, // [62:85] is the sub-list for method output_type
-	39, // [39:62] is the sub-list for method input_type
-	39, // [39:39] is the sub-list for extension type_name
-	39, // [39:39] is the sub-list for extension extendee
-	0,  // [0:39] is the sub-list for field type_name
+	48, // 36: daemon.ScanForProjectsResponse.projects:type_name -> daemon.ProjectInfo
+	49, // 37: daemon.RegisterProjectRequest.config:type_name -> daemon.ProjectConfig
+	49, // 38: daemon.ProjectConfigResponse.config:type_name -> daemon.ProjectConfig
+	48, // 39: daemon.ListProjectsResponse.projects:type_name -> daemon.ProjectInfo
+	49, // 40: daemon.ProjectInfo.config:type_name -> daemon.ProjectConfig
+	57, // 41: daemon.ProjectInfo.detected_at:type_name -> google.protobuf.Timestamp
+	56, // 42: daemon.ProjectConfig.metadata:type_name -> daemon.ProjectConfig.MetadataEntry
+	3,  // 43: daemon.ProjectConfig.servers:type_name -> daemon.ServerConfig
+	18, // 44: daemon.ListDestinationsResponse.DestinationsEntry.value:type_name -> daemon.DestinationInfo
+	23, // 45: daemon.MultiSyncResult.ResultsEntry.value:type_name -> daemon.SyncResult
+	3,  // 46: daemon.Config.ServersEntry.value:type_name -> daemon.ServerConfig
+	5,  // 47: daemon.AgentMasterDaemon.AddServer:input_type -> daemon.AddServerRequest
+	6,  // 48: daemon.AgentMasterDaemon.UpdateServer:input_type -> daemon.UpdateServerRequest
+	7,  // 49: daemon.AgentMasterDaemon.RemoveServer:input_type -> daemon.RemoveServerRequest
+	8,  // 50: daemon.AgentMasterDaemon.GetServer:input_type -> daemon.GetServerRequest
+	11, // 51: daemon.AgentMasterDaemon.ListServers:input_type -> daemon.ListServersRequest
+	9,  // 52: daemon.AgentMasterDaemon.EnableServer:input_type -> daemon.EnableServerRequest
+	10, // 53: daemon.AgentMasterDaemon.DisableServer:input_type -> daemon.DisableServerRequest
+	15, // 54: daemon.AgentMasterDaemon.RegisterDestination:input_type -> daemon.RegisterDestinationRequest
+	16, // 55: daemon.AgentMasterDaemon.RemoveDestination:input_type -> daemon.RemoveDestinationRequest
+	58, // 56: daemon.AgentMasterDaemon.ListDestinations:input_type -> google.protobuf.Empty
+	19, // 57: daemon.AgentMasterDaemon.SyncTo:input_type -> daemon.SyncToRequest
+	20, // 58: daemon.AgentMasterDaemon.SyncToMultiple:input_type -> daemon.SyncToMultipleRequest
+	21, // 59: daemon.AgentMasterDaemon.PreviewSync:input_type -> daemon.PreviewSyncRequest
+	27, // 60: daemon.AgentMasterDaemon.StartAutoSync:input_type -> daemon.AutoSyncConfig
+	58, // 61: daemon.AgentMasterDaemon.StopAutoSync:input_type -> google.protobuf.Empty
+	58, // 62: daemon.AgentMasterDaemon.GetAutoSyncStatus:input_type -> google.protobuf.Empty
+	58, // 63: daemon.AgentMasterDaemon.GetConfig:input_type -> google.protobuf.Empty
+	29, // 64: daemon.AgentMasterDaemon.SetConfig:input_type -> daemon.Config
+	34, // 65: daemon.AgentMasterDaemon.LoadConfig:input_type -> daemon.LoadConfigRequest
+	58, // 66: daemon.AgentMasterDaemon.SaveConfig:input_type -> google.protobuf.Empty
+	58, // 67: daemon.AgentMasterDaemon.GetStatus:input_type -> google.protobuf.Empty
+	58, // 68: daemon.AgentMasterDaemon.Shutdown:input_type -> google.protobuf.Empty
+	36, // 69: daemon.AgentMasterDaemon.Subscribe:input_type -> daemon.SubscribeRequest
+	42, // 70: daemon.AgentMasterDaemon.ScanForProjects:input_type -> daemon.ScanForProjectsRequest
+	44, // 71: daemon.AgentMasterDaemon.RegisterProject:input_type -> daemon.RegisterProjectRequest
+	45, // 72: daemon.AgentMasterDaemon.GetProjectConfig:input_type -> daemon.GetProjectConfigRequest
+	58, // 73: daemon.AgentMasterDaemon.ListProjects:input_type -> google.protobuf.Empty
+	13, // 74: daemon.AgentMasterDaemon.AddServer:output_type -> daemon.ServerResponse
+	13, // 75: daemon.AgentMasterDaemon.UpdateServer:output_type -> daemon.ServerResponse
+	58, // 76: daemon.AgentMasterDaemon.RemoveServer:output_type -> google.protobuf.Empty
+	13, // 77: daemon.AgentMasterDaemon.GetServer:output_type -> daemon.ServerResponse
+	14, // 78: daemon.AgentMasterDaemon.ListServers:output_type -> daemon.ListServersResponse
+	13, // 79: daemon.AgentMasterDaemon.EnableServer:output_type -> daemon.ServerResponse
+	13, // 80: daemon.AgentMasterDaemon.DisableServer:output_type -> daemon.ServerResponse
+	58, // 81: daemon.AgentMasterDaemon.RegisterDestination:output_type -> google.protobuf.Empty
+	58, // 82: daemon.AgentMasterDaemon.RemoveDestination:output_type -> google.protobuf.Empty
+	17, // 83: daemon.AgentMasterDaemon.ListDestinations:output_type -> daemon.ListDestinationsResponse
+	23, // 84: daemon.AgentMasterDaemon.SyncTo:output_type -> daemon.SyncResult
+	24, // 85: daemon.AgentMasterDaemon.SyncToMultiple:output_type -> daemon.MultiSyncResult
+	25, // 86: daemon.AgentMasterDaemon.PreviewSync:output_type -> daemon.SyncPreview
+	58, // 87: daemon.AgentMasterDaemon.StartAutoSync:output_type -> google.protobuf.Empty
+	58, // 88: daemon.AgentMasterDaemon.StopAutoSync:output_type -> google.protobuf.Empty
+	28, // 89: daemon.AgentMasterDaemon.GetAutoSyncStatus:output_type -> daemon.AutoSyncStatus
+	29, // 90: daemon.AgentMasterDaemon.GetConfig:output_type -> daemon.Config
+	58, // 91: daemon.AgentMasterDaemon.SetConfig:output_type -> google.protobuf.Empty
+	58, // 92: daemon.AgentMasterDaemon.LoadConfig:output_type -> google.protobuf.Empty
+	58, // 93: daemon.AgentMasterDaemon.SaveConfig:output_type -> google.protobuf.Empty
+	35, // 94: daemon.AgentMasterDaemon.GetStatus:output_type -> daemon.DaemonStatus
+	58, // 95: daemon.AgentMasterDaemon.Shutdown:output_type -> google.protobuf.Empty
+	37, // 96: daemon.AgentMasterDaemon.Subscribe:output_type -> daemon.Event
+	43, // 97: daemon.AgentMasterDaemon.ScanForProjects:output_type -> daemon.ScanForProjectsResponse
+	58, // 98: daemon.AgentMasterDaemon.RegisterProject:output_type -> google.protobuf.Empty
+	46, // 99: daemon.AgentMasterDaemon.GetProjectConfig:output_type -> daemon.ProjectConfigResponse
+	47, // 100: daemon.AgentMasterDaemon.ListProjects:output_type -> daemon.ListProjectsResponse
+	74, // [74:101] is the sub-list for method output_type
+	47, // [47:74] is the sub-list for method input_type
+	47, // [47:47] is the sub-list for extension type_name
+	47, // [47:47] is the sub-list for extension extendee
+	0,  // [0:47] is the sub-list for field type_name
 }
 
 func init() { file_daemon_proto_daemon_proto_init() }
@@ -2932,7 +3406,7 @@ func file_daemon_proto_daemon_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_daemon_proto_daemon_proto_rawDesc), len(file_daemon_proto_daemon_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   45,
+			NumMessages:   54,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
