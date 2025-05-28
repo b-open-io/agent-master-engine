@@ -27,7 +27,14 @@ protoc --go_out=. --go_opt=module=github.com/b-open-io/agent-master-engine \
 
 # Build the daemon
 echo "🔨 Building daemon..."
-go build -o agent-master-daemon ./cmd/daemon
+VERSION=${VERSION:-"0.1.9"}
+GIT_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+go build -ldflags "-X github.com/b-open-io/agent-master-engine/daemon.Version=${VERSION} \
+    -X github.com/b-open-io/agent-master-engine/daemon.GitCommit=${GIT_COMMIT} \
+    -X github.com/b-open-io/agent-master-engine/daemon.BuildDate=${BUILD_DATE}" \
+    -o agent-master-daemon ./cmd/daemon
 
 # Create storage directory
 mkdir -p ~/.agent-master/daemon

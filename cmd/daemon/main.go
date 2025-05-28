@@ -70,6 +70,11 @@ func main() {
 		}
 	}
 
+	// Set version info in daemon package
+	daemon.Version = Version
+	daemon.GitCommit = GitCommit
+	daemon.BuildDate = BuildDate
+
 	// Create and start daemon
 	d, err := daemon.New(config)
 	if err != nil {

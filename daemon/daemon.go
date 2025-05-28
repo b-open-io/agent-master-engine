@@ -19,10 +19,7 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-var (
-	// Version is set by build flags
-	Version = "dev"
-)
+// Version variables are defined in version.go
 
 // Daemon represents the agent-master daemon
 type Daemon struct {
@@ -138,8 +135,11 @@ func (d *Daemon) Run(ctx context.Context) error {
 	}
 	
 	// Log startup
+	versionInfo := GetVersionInfo()
 	d.logger.Info("Daemon started",
-		"version", Version,
+		"version", versionInfo.Version,
+		"commit", versionInfo.GitCommit,
+		"build_date", versionInfo.BuildDate,
 		"storage", d.config.StoragePath,
 		"address", d.getListenAddress(),
 	)

@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	engine "github.com/b-open-io/agent-master-engine"
@@ -189,13 +190,26 @@ func (s *Service) GetAutoSyncStatus(ctx context.Context, req *emptypb.Empty) (*p
 func (s *Service) GetStatus(ctx context.Context, req *emptypb.Empty) (*pb.DaemonStatus, error) {
 	uptime := time.Since(s.daemon.startTime)
 	
+	// Get auto-sync status from engine
+	autoSyncRunning := false
+	if autoSyncStatus, err := s.daemon.engine.GetAutoSyncStatus(); err == nil && autoSyncStatus != nil {
+		autoSyncRunning = autoSyncStatus.Running
+	}
+	
+	// Get version info
+	versionInfo := GetVersionInfo()
+	versionString := versionInfo.Version
+	if versionInfo.GitCommit != "unknown" {
+		versionString = fmt.Sprintf("%s (%s)", versionInfo.Version, versionInfo.GitCommit)
+	}
+	
 	return &pb.DaemonStatus{
 		Running:          true,
-		Version:          "1.0.0", // TODO: Get from build info
+		Version:          versionString,
 		StartTime:        timestamppb.New(s.daemon.startTime),
 		UptimeSeconds:    int64(uptime.Seconds()),
-		ActiveConnections: 0, // TODO: Track connections
-		AutoSyncRunning:  false, // TODO: Get from engine
+		ActiveConnections: int32(atomic.LoadInt64(&s.daemon.connections)),
+		AutoSyncRunning:  autoSyncRunning,
 		LastError:        "",
 	}, nil
 }
